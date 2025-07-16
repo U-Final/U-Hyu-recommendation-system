@@ -49,19 +49,17 @@ with engine.connect() as conn:
     )).fetchall(), columns=["brand_id", "brand_name", "category_id"])
 
     # 행동 로그 정보
-    interaction_df = pd.DataFrame(conn.execute(text(
-        """
-        SELECT al.user_id, b.brand_id, al.action_type
-        FROM action_logs al
-        JOIN stores s ON al.store_id = s.id
-        JOIN brands b ON s.brand_id = b.brand_id
-        WHERE al.action_type IN ('marker_click', 'favorite')
-        """
-    )).fetchall(), columns=["user_id", "brand_id", "action_type"])
+    # interaction_df = pd.DataFrame(conn.execute(text(
+    #     """
+    #     SELECT al.user_id, b.brand_id, al.action_type
+    #     FROM action_logs al
+    #     JOIN stores s ON al.store_id = s.id
+    #     JOIN brands b ON s.brand_id = b.brand_id
+    #     WHERE al.action_type IN ('marker_click', 'favorite')
+    #     """
+    # )).fetchall(), columns=["user_id", "brand_id", "action_type"])
 
     # 즐겨찾기 목록
-
-    #
 
 # 4. 온보딩 기반 user_feature 구성
 user_feature_map = defaultdict(list)
@@ -82,20 +80,18 @@ dataset.fit(users=user_df["user_id"], items=brand_df["brand_id"])
 all_user_features = set(f for feats in user_feature_map.values() for f in feats)
 dataset.fit_partial(user_features=all_user_features)
 
-(interactions, weights) = dataset.build_interactions([
-    (row["user_id"], row["brand_id"], row["weight"])
-    for _, row in interaction_df.iterrows()
-])
+# LightFM은 최소한의 interaction이 필요하므로 dummy로 구성
+dummy_interactions = [(user_id, brand_id) for user_id in user_df["user_id"] for brand_id in brand_df["brand_id"][:1]]
+interactions, _ = dataset.build_interactions(dummy_interactions)
 
 user_features = dataset.build_user_features(
     [(uid, feats) for uid, feats in user_feature_map.items()]
 )
 
-
-# 5. 모델 학습
+# 모델 학습
 print("🧠 LightFM 모델 학습 중...")
 model = LightFM(loss="warp")
-model.fit(interactions, user_features=user_features, sample_weight=weights, epochs=10, num_threads=2)
+model.fit(interactions, user_features=user_features, epochs=10, num_threads=2)
 
 # 6. 추천 생성
 print("📊 사용자별 추천 생성 중...")
@@ -104,11 +100,13 @@ all_item_ids = brand_df["brand_id"].tolist()
 recommendations = []
 
 for user_id in user_df["user_id"]:
-    known = interaction_df[interaction_df["user_id"] == user_id]["brand_id"].tolist()
-
-    scores = model.predict(user_ids=user_id, item_ids=np.array(all_item_ids))
-    scores = [(item_id, s) for item_id, s in zip(all_item_ids, scores) if item_id not in known]
-    top_k = sorted(scores, key=lambda x: -x[1])[:5]
+    scores = model.predict(
+        user_ids=user_df[user_df["user_id"] == user_id].index[0],
+        item_ids=np.arange(len(all_item_ids)),
+        user_features=user_features
+    )
+    top_k_indices = np.argsort(-scores)[:5]
+    top_k = [(all_item_ids[i], scores[i]) for i in top_k_indices]
 
     for rank, (brand_id, score) in enumerate(top_k, start=1):
         recommendations.append({
