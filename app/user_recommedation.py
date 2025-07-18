@@ -151,17 +151,9 @@ recommend_df.to_csv(csv_path, index=False)
 print(f"✅ 추천 완료 및 CSV 저장 완료: {csv_path}")
 
 # 7. 추천 결과 저장 (SQLAlchemy Core 사용)
-# print("💾 추천 결과 DB 저장 중...")
-#
+print("💾 추천 결과 DB 저장 중...")
+
 # with engine.begin() as conn:
-#     user_ids = recommend_df["user_id"].unique().tolist()
-#
-#     # 해당 사용자들의 기존 추천 삭제
-#     conn.execute(text(
-#         "DELETE FROM recommendation WHERE user_id = ANY(:uids)"
-#     ), {"uids": user_ids})
-#
-#     # 삽입 반복
 #     for _, row in recommend_df.iterrows():
 #         conn.execute(text("""
 #             INSERT INTO recommendation (user_id, brand_id, score, rank, created_at)
