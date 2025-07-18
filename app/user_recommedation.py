@@ -49,17 +49,17 @@ with engine.connect() as conn:
     )).fetchall(), columns=["brand_id", "brand_name", "category_id"])
 
     # 행동 로그 정보
-    # interaction_df = pd.DataFrame(conn.execute(text(
-    #     """
-    #     SELECT al.user_id, b.brand_id, al.action_type
-    #     FROM action_logs al
-    #     JOIN stores s ON al.store_id = s.id
-    #     JOIN brands b ON s.brand_id = b.brand_id
-    #     WHERE al.action_type IN ('marker_click', 'favorite')
-    #     """
-    # )).fetchall(), columns=["user_id", "brand_id", "action_type"])
+    interaction_df = pd.DataFrame(conn.execute(text(
+        """
+        SELECT al.user_id, b.id, al.action_type
+        FROM action_logs al
+        JOIN store s ON al.store_id = s.id
+        JOIN brands b ON s.brand_id = b.id
+        WHERE al.action_type IN ('MARKER_CLICK', 'FILTER_USED')
+        """
+    )).fetchall(), columns=["user_id", "brand_id", "action_type"])
 
-    # 즐겨찾기 목록
+    # 즐겨찾기 목록 정보
 
 # 4. 온보딩 기반 user_feature 구성
 user_feature_map = defaultdict(list)
@@ -80,9 +80,23 @@ dataset.fit(users=user_df["user_id"], items=brand_df["brand_id"])
 all_user_features = set(f for feats in user_feature_map.values() for f in feats)
 dataset.fit_partial(user_features=all_user_features)
 
-# LightFM은 최소한의 interaction이 필요하므로 dummy로 구성 - Onboarding 정보만 작성한 유저
-dummy_interactions = [(user_id, brand_id) for user_id in user_df["user_id"] for brand_id in brand_df["brand_id"][:1]]
-interactions, _ = dataset.build_interactions(dummy_interactions)
+
+print("🧾 사용자별 interaction 구성 중...")
+
+# Action log가 있는 유저와 없는 유저 분리
+users_with_logs = set(interaction_df["user_id"])
+all_users = set(user_df["user_id"])
+users_without_logs = all_users - users_with_logs
+
+# 실제 interaction은 action_logs 기반으로 구성
+real_interactions = list(zip(interaction_df["user_id"], interaction_df["brand_id"]))
+
+# action log가 없는 유저는 첫 브랜드만 대상으로 dummy interaction 생성
+dummy_interactions = [(user_id, brand_df["brand_id"].iloc[0]) for user_id in users_without_logs]
+
+combined_interactions = real_interactions + dummy_interactions
+
+interactions, _ = dataset.build_interactions(combined_interactions)
 
 user_features = dataset.build_user_features(
     [(uid, feats) for uid, feats in user_feature_map.items()]
@@ -114,7 +128,7 @@ for user_id in user_df["user_id"]:
         user_features=user_features
     )
 
-    top_k_indices = np.argsort(-scores)[:3]
+    top_k_indices = np.argsort(-scores)[:5]
     top_k = [(all_item_ids[i], scores[i]) for i in top_k_indices]
 
     for rank, (brand_id, score) in enumerate(top_k, start=1):
@@ -136,29 +150,28 @@ recommend_df.to_csv(csv_path, index=False)
 
 print(f"✅ 추천 완료 및 CSV 저장 완료: {csv_path}")
 
-
 # 7. 추천 결과 저장 (SQLAlchemy Core 사용)
-print("💾 추천 결과 DB 저장 중...")
-
-with engine.begin() as conn:
-    user_ids = recommend_df["user_id"].unique().tolist()
-
-    # 해당 사용자들의 기존 추천 삭제
-    conn.execute(text(
-        "DELETE FROM recommendation WHERE user_id = ANY(:uids)"
-    ), {"uids": user_ids})
-
-    # 삽입 반복
-    for _, row in recommend_df.iterrows():
-        conn.execute(text("""
-            INSERT INTO recommendation (user_id, brand_id, score, rank, created_at)
-            VALUES (:user_id, :brand_id, :score, :rank, :created_at)
-        """), {
-            "user_id": int(row.user_id),
-            "brand_id": int(row.brand_id),
-            "score": float(row.score),
-            "rank": int(row.rank),
-            "created_at": row.created_at
-        })
+# print("💾 추천 결과 DB 저장 중...")
+#
+# with engine.begin() as conn:
+#     user_ids = recommend_df["user_id"].unique().tolist()
+#
+#     # 해당 사용자들의 기존 추천 삭제
+#     conn.execute(text(
+#         "DELETE FROM recommendation WHERE user_id = ANY(:uids)"
+#     ), {"uids": user_ids})
+#
+#     # 삽입 반복
+#     for _, row in recommend_df.iterrows():
+#         conn.execute(text("""
+#             INSERT INTO recommendation (user_id, brand_id, score, rank, created_at)
+#             VALUES (:user_id, :brand_id, :score, :rank, :created_at)
+#         """), {
+#             "user_id": int(row.user_id),
+#             "brand_id": int(row.brand_id),
+#             "score": float(row.score),
+#             "rank": int(row.rank),
+#             "created_at": row.created_at
+#         })
 
 print("✅ 추천 완료 및 DB 저장 완료.")
