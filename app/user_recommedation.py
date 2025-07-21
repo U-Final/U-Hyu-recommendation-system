@@ -153,17 +153,17 @@ print(f"✅ 추천 완료 및 CSV 저장 완료: {csv_path}")
 # 7. 추천 결과 저장 (SQLAlchemy Core 사용)
 print("💾 추천 결과 DB 저장 중...")
 
-# with engine.begin() as conn:
-#     for _, row in recommend_df.iterrows():
-#         conn.execute(text("""
-#             INSERT INTO recommendation (user_id, brand_id, score, rank, created_at)
-#             VALUES (:user_id, :brand_id, :score, :rank, :created_at)
-#         """), {
-#             "user_id": int(row.user_id),
-#             "brand_id": int(row.brand_id),
-#             "score": float(row.score),
-#             "rank": int(row.rank),
-#             "created_at": row.created_at
-#         })
+with engine.begin() as conn:
+    for _, row in recommend_df.iterrows():
+        conn.execute(text("""
+            INSERT INTO recommendation (user_id, brand_id, score, rank, created_at)
+            VALUES (:user_id, :brand_id, :score, :rank, :created_at)
+        """), {
+            "user_id": int(row.user_id),
+            "brand_id": int(row.brand_id),
+            "score": float(row.score),
+            "rank": int(row['rank']),
+            "created_at": row.created_at
+        })
 
 print("✅ 추천 완료 및 DB 저장 완료.")
