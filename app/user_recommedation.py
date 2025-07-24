@@ -61,8 +61,8 @@ with engine.connect() as conn:
 
 # 행동 유형별로 중요도를 다르게 설정
     action_weights = {
-        "MARKER_CLICK": 1.0,
-        "FILTER_USED": 0.5
+        "MARKER_CLICK": 0.5,
+        "FILTER_USED": 0.3
     }
 
     interaction_raw["weight"] = interaction_raw["action_type"].map(action_weights)
@@ -79,7 +79,21 @@ for user_id, group in onboarding_df.groupby("user_id"):
     interest = group[group["data_type"] == "INTEREST"]["brand_id"].tolist()[:4]
 
     # 브랜드 아이디에 prefix를 붙여서 feature로 만듦
-    features = [f"recent_{b}" for b in recent] + [f"interest_{b}" for b in interest]
+    # recent 2배, interest 3배로 강조
+    features = (
+            [f"recent_{b}" for b in recent] * 2 +
+            [f"interest_{b}" for b in interest] * 3
+    )
+
+    # category 정보도 함께 반영
+    brand_to_category = dict(zip(brand_df["brand_id"], brand_df["category_id"]))
+    category_ids = set()
+    for b in recent + interest:
+        category_id = brand_to_category.get(b)
+        if category_id is not None:
+            category_ids.add(category_id)
+
+    features += [f"cat_{cid}" for cid in category_ids] * 2  # category 선호도 2배 강조
     user_feature_map[user_id] = features
 
 # 5. LightFM 입력 구성
@@ -163,14 +177,28 @@ print("💾 추천 결과 DB 저장 중...")
 with engine.begin() as conn:
     for _, row in recommend_df.iterrows():
         conn.execute(text("""
-            INSERT INTO recommendation (user_id, brand_id, score, rank, created_at)
-            VALUES (:user_id, :brand_id, :score, :rank, :created_at)
-        """), {
-            "user_id": int(row.user_id),
-            "brand_id": int(row.brand_id),
-            "score": float(row.score),
-            "rank": int(row['rank']),
-            "created_at": row.created_at
-        })
+            INSERT INTO recommendation (user_id, brand_id, category_id, score, rank, created_at, updated_at)
+            SELECT :user_id, b.id, b.category_id, :score, :rank, now(), now()
+            FROM brands b
+            WHERE b.id = :brand_id
+            """), {
+                "user_id": row["user_id"],
+                "brand_id": row["brand_id"],
+                "score": row["score"],
+                "rank": row["rank"]
+            })
 
 print("✅ 추천 완료 및 DB 저장 완료.")
+
+# 최근 이용 브랜드와 추천 브랜드가 얼마나 겹치는지를 기반으로한 평가지표
+def calculate_hit_rate(interaction_df, recommend_df, user_id):
+    # 1. 최근 많이 클릭한 브랜드 Top-N (예: 5개)
+    top_clicked = interaction_df[interaction_df["user_id"] == user_id] \
+        .sort_values("weight", ascending=False).head(5)["brand_id"].tolist()
+
+    # 2. 추천된 브랜드 Top-K
+    recommended = recommend_df[recommend_df["user_id"] == user_id]["brand_id"].tolist()
+
+    # 3. 교집합 확인
+    hits = set(top_clicked) & set(recommended)
+    return len(hits) / len(recommended) if recommended else 0
