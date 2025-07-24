@@ -202,3 +202,63 @@ def calculate_hit_rate(interaction_df, recommend_df, user_id):
     # 3. 교집합 확인
     hits = set(top_clicked) & set(recommended)
     return len(hits) / len(recommended) if recommended else 0
+
+# 추천 결과와 클릭 행동 간의 카테고리 분포를 시각화하는 코드입니다.
+# 필요 라이브러리인 matplotlib과 seaborn을 import합니다.
+import matplotlib.pyplot as plt
+
+def plot_user_category_distribution(user_id, interaction_df, recommend_df, brand_df):
+    # 클릭한 브랜드의 category 분포
+    clicked_brands = interaction_df[interaction_df["user_id"] == user_id]["brand_id"]
+    clicked_categories = brand_df[brand_df["brand_id"].isin(clicked_brands)]["category_id"].value_counts().sort_index()
+    clicked_categories.name = "Clicked"
+
+    # 추천 받은 브랜드의 category 분포
+    recommended_brands = recommend_df[recommend_df["user_id"] == user_id]["brand_id"]
+    recommended_categories = brand_df[brand_df["brand_id"].isin(recommended_brands)]["category_id"].value_counts().sort_index()
+    recommended_categories.name = "Recommended"
+
+    # 합치기
+    category_df = pd.concat([clicked_categories, recommended_categories], axis=1).fillna(0)
+
+    # 시각화
+    category_df.plot(kind="bar", figsize=(10, 5))
+    plt.title(f"User {user_id} - Category Distribution (Clicked vs Recommended)")
+    plt.xlabel("Category ID")
+    plt.ylabel("Count")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+# 사용자 클릭 브랜드와 추천 브랜드 비교 함수 추가
+def show_user_click_vs_recommendation(user_id, interaction_df, recommend_df, brand_df):
+    # 사용자가 클릭한 브랜드 Top-N
+    top_clicked = interaction_df[interaction_df["user_id"] == user_id] \
+        .sort_values("weight", ascending=False).head(5)["brand_id"]
+
+    top_clicked_brands = brand_df[brand_df["brand_id"].isin(top_clicked)][["brand_id", "brand_name"]]
+    top_clicked_brands = top_clicked_brands.merge(interaction_df[interaction_df["user_id"] == user_id], on="brand_id")
+    top_clicked_brands = top_clicked_brands[["brand_name", "weight"]].sort_values("weight", ascending=False)
+    top_clicked_brands.columns = ["Clicked Brand", "Click Weight"]
+
+    # 추천된 브랜드 Top-N
+    recommended = recommend_df[recommend_df["user_id"] == user_id][["brand_id", "score", "rank"]]
+    recommended = recommended.merge(brand_df, left_on="brand_id", right_on="brand_id")
+    recommended = recommended[["brand_name", "score", "rank"]].sort_values("rank")
+    recommended.columns = ["Recommended Brand", "Score", "Rank"]
+
+    # 출력
+    print("\n📌 사용자 클릭 브랜드 Top 5:")
+    print(top_clicked_brands.to_string(index=False))
+
+    print("\n🎯 추천된 브랜드 Top 5:")
+    print(recommended.to_string(index=False))
+
+# 예시: 사용자 ID 2번에 대해 시각화
+# plot_user_category_distribution(user_id=2, interaction_df=interaction_df, recommend_df=recommend_df, brand_df=brand_df)
+
+for i in range(1, 21) :
+    print(f"user : {i}")
+    show_user_click_vs_recommendation(user_id=i, interaction_df=interaction_df, recommend_df=recommend_df,
+                                      brand_df=brand_df)
+    print("=====")
