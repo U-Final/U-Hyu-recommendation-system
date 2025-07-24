@@ -49,15 +49,25 @@ with engine.connect() as conn:
     )).fetchall(), columns=["brand_id", "brand_name", "category_id"])
 
     # 행동 로그 정보
-    interaction_df = pd.DataFrame(conn.execute(text(
+    interaction_raw = pd.DataFrame(conn.execute(text(
         """
-        SELECT al.user_id, b.id, al.action_type
+        SELECT al.user_id, b.id AS brand_id, al.action_type
         FROM action_logs al
         JOIN store s ON al.store_id = s.id
         JOIN brands b ON s.brand_id = b.id
         WHERE al.action_type IN ('MARKER_CLICK', 'FILTER_USED')
         """
     )).fetchall(), columns=["user_id", "brand_id", "action_type"])
+
+# 행동 유형별로 중요도를 다르게 설정
+    action_weights = {
+        "MARKER_CLICK": 1.0,
+        "FILTER_USED": 0.5
+    }
+
+    interaction_raw["weight"] = interaction_raw["action_type"].map(action_weights)
+    # 같은 브랜드를 여러 번 클릭한 경우 가중치 누적 합산
+    interaction_df = interaction_raw.groupby(["user_id", "brand_id"])["weight"].sum().reset_index()
 
     # 즐겨찾기 목록 정보
 
@@ -80,7 +90,6 @@ dataset.fit(users=user_df["user_id"], items=brand_df["brand_id"])
 all_user_features = set(f for feats in user_feature_map.values() for f in feats)
 dataset.fit_partial(user_features=all_user_features)
 
-
 print("🧾 사용자별 interaction 구성 중...")
 
 # Action log가 있는 유저와 없는 유저 분리
@@ -89,14 +98,12 @@ all_users = set(user_df["user_id"])
 users_without_logs = all_users - users_with_logs
 
 # 실제 interaction은 action_logs 기반으로 구성
-real_interactions = list(zip(interaction_df["user_id"], interaction_df["brand_id"]))
+real_interactions = list(zip(interaction_df["user_id"], interaction_df["brand_id"], interaction_df["weight"]))
 
 # action log가 없는 유저는 첫 브랜드만 대상으로 dummy interaction 생성
 dummy_interactions = [(user_id, brand_df["brand_id"].iloc[0]) for user_id in users_without_logs]
 
-combined_interactions = real_interactions + dummy_interactions
-
-interactions, _ = dataset.build_interactions(combined_interactions)
+interactions, weights = dataset.build_interactions(real_interactions + dummy_interactions)
 
 user_features = dataset.build_user_features(
     [(uid, feats) for uid, feats in user_feature_map.items()]
@@ -105,7 +112,7 @@ user_features = dataset.build_user_features(
 # 모델 학습
 print("🧠 LightFM 모델 학습 중...")
 model = LightFM(loss="warp")
-model.fit(interactions, user_features=user_features, epochs=10, num_threads=2)
+model.fit(interactions, sample_weight=weights, user_features=user_features, epochs=10, num_threads=2)
 
 # 6. 추천 생성
 print("📊 사용자별 추천 생성 중...")
