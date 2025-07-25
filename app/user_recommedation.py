@@ -111,13 +111,26 @@ users_with_logs = set(interaction_df["user_id"])
 all_users = set(user_df["user_id"])
 users_without_logs = all_users - users_with_logs
 
-# 실제 interaction은 action_logs 기반으로 구성
+
+# dummy_interactions 생성: 온보딩 기반, 가중치 반영
+dummy_interactions = []
+for user_id in users_without_logs:
+    onboarding_rows = onboarding_df[onboarding_df["user_id"] == user_id]
+    recent = onboarding_rows[onboarding_rows["data_type"] == "RECENT"]["brand_id"].tolist()
+    interest = onboarding_rows[onboarding_rows["data_type"] == "INTEREST"]["brand_id"].tolist()
+
+    # 관심 브랜드: 가중치 3, 방문 브랜드: 가중치 2
+    dummy_interactions += [(user_id, b, 3.0) for b in interest]
+    dummy_interactions += [(user_id, b, 2.0) for b in recent]
+
+    # 아무 데이터도 없는 유저는 기본 브랜드 하나 넣기
+    if not interest and not recent:
+        dummy_interactions.append((user_id, brand_df["brand_id"].iloc[0], 1.0))
+
+# real_interactions와 dummy_interactions 합쳐서 interactions 생성
 real_interactions = list(zip(interaction_df["user_id"], interaction_df["brand_id"], interaction_df["weight"]))
-
-# action log가 없는 유저는 첫 브랜드만 대상으로 dummy interaction 생성
-dummy_interactions = [(user_id, brand_df["brand_id"].iloc[0]) for user_id in users_without_logs]
-
-interactions, weights = dataset.build_interactions(real_interactions + dummy_interactions)
+all_interactions = real_interactions + dummy_interactions
+interactions, weights = dataset.build_interactions(all_interactions)
 
 user_features = dataset.build_user_features(
     [(uid, feats) for uid, feats in user_feature_map.items()]
@@ -254,11 +267,25 @@ def show_user_click_vs_recommendation(user_id, interaction_df, recommend_df, bra
     print("\n🎯 추천된 브랜드 Top 5:")
     print(recommended.to_string(index=False))
 
+    # 관심 브랜드
+    interest_brands = onboarding_df[(onboarding_df["user_id"] == user_id) & (onboarding_df["data_type"] == "INTEREST")]["brand_id"]
+    interest_brands_names = brand_df[brand_df["brand_id"].isin(interest_brands)]["brand_name"].tolist()
+
+    # 방문 브랜드
+    recent_brands = onboarding_df[(onboarding_df["user_id"] == user_id) & (onboarding_df["data_type"] == "RECENT")]["brand_id"]
+    recent_brands_names = brand_df[brand_df["brand_id"].isin(recent_brands)]["brand_name"].tolist()
+
+    print("\n⭐ 관심 브랜드 (INTEREST):")
+    print(", ".join(interest_brands_names) if interest_brands_names else "없음")
+
+    print("\n📍 방문 브랜드 (RECENT):")
+    print(", ".join(recent_brands_names) if recent_brands_names else "없음")
+
 # 예시: 사용자 ID 2번에 대해 시각화
 # plot_user_category_distribution(user_id=2, interaction_df=interaction_df, recommend_df=recommend_df, brand_df=brand_df)
 
-for i in range(1, 21) :
+for i in range(1, 30) :
     print(f"user : {i}")
     show_user_click_vs_recommendation(user_id=i, interaction_df=interaction_df, recommend_df=recommend_df,
                                       brand_df=brand_df)
-    print("=====")
+    print("\n==============\n")
