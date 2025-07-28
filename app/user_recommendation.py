@@ -167,6 +167,23 @@ for user_id in user_df["user_id"]:
 
 recommend_df = pd.DataFrame(recommendations)
 
+# 브랜드 카테고리 정보 추가 : 추천 결과에 카테고리 ID를 미리 병합
+recommend_df = recommend_df.merge(
+    brand_df[["brand_id", "category_id"]],
+    on="brand_id",
+    how="left"
+)
+recommend_df["updated_at"] = datetime.utcnow()
+
+# 배치 INSERT
+recommend_df.to_sql(
+    "recommendation",
+    engine,
+    if_exists="append",
+    index=False,
+    method="multi"
+)
+
 # 7. 추천 결과 CSV로 저장
 print("💾 추천 결과 CSV 저장 중...")
 
@@ -174,23 +191,6 @@ csv_path = "recommendations.csv"
 recommend_df.to_csv(csv_path, index=False)
 
 print(f"✅ 추천 완료 및 CSV 저장 완료: {csv_path}")
-
-# 7. 추천 결과 저장 (SQLAlchemy Core 사용)
-print("💾 추천 결과 DB 저장 중...")
-
-with engine.begin() as conn:
-    for _, row in recommend_df.iterrows():
-        conn.execute(text("""
-            INSERT INTO recommendation (user_id, brand_id, category_id, score, rank, created_at, updated_at)
-            SELECT :user_id, b.id, b.category_id, :score, :rank, now(), now()
-            FROM brands b
-            WHERE b.id = :brand_id
-            """), {
-                "user_id": row["user_id"],
-                "brand_id": row["brand_id"],
-                "score": row["score"],
-                "rank": row["rank"]
-            })
 
 print("✅ 추천 완료 및 DB 저장 완료.")
 
