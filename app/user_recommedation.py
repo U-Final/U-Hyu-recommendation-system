@@ -119,9 +119,9 @@ for user_id in users_without_logs:
     recent = onboarding_rows[onboarding_rows["data_type"] == "RECENT"]["brand_id"].tolist()
     interest = onboarding_rows[onboarding_rows["data_type"] == "INTEREST"]["brand_id"].tolist()
 
-    # 관심 브랜드: 가중치 3, 방문 브랜드: 가중치 2
-    dummy_interactions += [(user_id, b, 3.0) for b in interest]
-    dummy_interactions += [(user_id, b, 2.0) for b in recent]
+    # 관심 브랜드: 가중치 2, 방문 브랜드: 가중치 3
+    dummy_interactions += [(user_id, b, 2.0) for b in interest]
+    dummy_interactions += [(user_id, b, 3.0) for b in recent]
 
     # 아무 데이터도 없는 유저는 기본 브랜드 하나 넣기
     if not interest and not recent:
