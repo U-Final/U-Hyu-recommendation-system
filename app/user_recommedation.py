@@ -59,12 +59,13 @@ with engine.connect() as conn:
         """
     )).fetchall(), columns=["user_id", "brand_id", "action_type"])
 
-# 행동 유형별로 중요도를 다르게 설정
+    # 행동 유형별로 중요도를 다르게 설정
     action_weights = {
         "MARKER_CLICK": 0.5,
         "FILTER_USED": 0.3
     }
 
+    # 각 행동에 맞는 가중치를 weight 칼럼에 추가
     interaction_raw["weight"] = interaction_raw["action_type"].map(action_weights)
     # 같은 브랜드를 여러 번 클릭한 경우 가중치 누적 합산
     interaction_df = interaction_raw.groupby(["user_id", "brand_id"])["weight"].sum().reset_index()
@@ -75,14 +76,14 @@ with engine.connect() as conn:
 user_feature_map = defaultdict(list)
 
 for user_id, group in onboarding_df.groupby("user_id"):
-    recent = group[group["data_type"] == "RECENT"]["brand_id"].tolist()[:6]
-    interest = group[group["data_type"] == "INTEREST"]["brand_id"].tolist()[:4]
+    recent = group[group["data_type"] == "RECENT"]["brand_id"].tolist()[:6] # 방문 브랜드 최대 6개까지 추출
+    interest = group[group["data_type"] == "INTEREST"]["brand_id"].tolist()[:4] # 관심 브랜드 최대 4개까지 추출
 
     # 브랜드 아이디에 prefix를 붙여서 feature로 만듦
     # recent 2배, interest 3배로 강조
     features = (
-            [f"recent_{b}" for b in recent] * 2 +
-            [f"interest_{b}" for b in interest] * 3
+            [f"recent_{b}" for b in recent] * 3 +
+            [f"interest_{b}" for b in interest] * 2
     )
 
     # category 정보도 함께 반영
