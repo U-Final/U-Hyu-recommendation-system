@@ -1,5 +1,8 @@
 import os
 import pandas as pd
+# 추천 결과와 클릭 행동 간의 카테고리 분포를 시각화하는 코드입니다.
+# 필요 라이브러리인 matplotlib과 seaborn을 import합니다.
+import matplotlib.pyplot as plt
 from sqlalchemy import create_engine, text
 from lightfm import LightFM
 from lightfm.data import Dataset
@@ -70,7 +73,7 @@ for user_id, group in onboarding_df.groupby("user_id"):
     interest = group[group["data_type"] == "INTEREST"]["brand_id"].tolist()[:4] # 관심 브랜드 최대 4개까지 추출
 
     # 브랜드 아이디에 prefix를 붙여서 feature로 만듦
-    # recent 2배, interest 3배로 강조
+    # recent 3배, interest 2배로 강조
     features = (
             [f"recent_{b}" for b in recent] * 3 +
             [f"interest_{b}" for b in interest] * 2
@@ -101,7 +104,6 @@ print("🧾 사용자별 interaction 구성 중...")
 users_with_logs = set(interaction_df["user_id"])
 all_users = set(user_df["user_id"])
 users_without_logs = all_users - users_with_logs
-
 
 # dummy_interactions 생성: 온보딩 기반, 가중치 반영
 dummy_interactions = []
@@ -206,10 +208,6 @@ def calculate_hit_rate(interaction_df, recommend_df, user_id):
     # 3. 교집합 확인
     hits = set(top_clicked) & set(recommended)
     return len(hits) / len(recommended) if recommended else 0
-
-# 추천 결과와 클릭 행동 간의 카테고리 분포를 시각화하는 코드입니다.
-# 필요 라이브러리인 matplotlib과 seaborn을 import합니다.
-import matplotlib.pyplot as plt
 
 def plot_user_category_distribution(user_id, interaction_df, recommend_df, brand_df):
     # 클릭한 브랜드의 category 분포
