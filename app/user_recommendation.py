@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, text
 from lightfm import LightFM
 from lightfm.data import Dataset
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 
 from dotenv import load_dotenv
@@ -170,7 +170,7 @@ for user_id in user_df["user_id"]:
             "brand_id": brand_id,
             "score": float(score),
             "rank": rank,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         })
 
 recommend_df = pd.DataFrame(recommendations)
@@ -181,16 +181,19 @@ recommend_df = recommend_df.merge(
     on="brand_id",
     how="left"
 )
-recommend_df["updated_at"] = datetime.utcnow()
+recommend_df["updated_at"] = datetime.now(timezone.utc)
 
-# 배치 INSERT
-recommend_df.to_sql(
-    "recommendation",
-    engine,
-    if_exists="append",
-    index=False,
-    method="multi"
-)
+# 배치 INSERT (executemany 방식)
+from sqlalchemy import text
+recommend_df["created_at"] = datetime.now(timezone.utc)
+with engine.begin() as conn:
+    conn.execute(
+        text("""
+            INSERT INTO recommendation (user_id, brand_id, category_id, score, rank, created_at, updated_at)
+            VALUES (:user_id, :brand_id, :category_id, :score, :rank, :created_at, :updated_at)
+        """),
+        recommend_df[["user_id", "brand_id", "category_id", "score", "rank", "created_at", "updated_at"]].to_dict("records")
+    )
 
 # 7. 추천 결과 CSV로 저장
 print("💾 추천 결과 CSV 저장 중...")
