@@ -1,7 +1,5 @@
 import os
 import pandas as pd
-# 추천 결과와 클릭 행동 간의 카테고리 분포를 시각화하는 코드입니다.
-# 필요 라이브러리인 matplotlib과 seaborn을 import합니다.
 import matplotlib.pyplot as plt
 from sqlalchemy import create_engine, text
 from lightfm import LightFM
@@ -95,8 +93,7 @@ user_feature_map = defaultdict(list)
 
 for user_id, group in user_brand_df.groupby("user_id"):
     recent = group[group["data_type"] == "RECENT"]["brand_id"].tolist()[:6]
-    interest = group[group["data_type"] == "INTEREST"]["brand_id"].tolist()[:5]
-
+    interest = group[group["data_type"] == "INTEREST"]["brand_id"].tolist()[:3]
 
     # 관심 브랜드는 3개 있음 -> RECENT 데이터와의 편차를 줄이기 위해 가중치 조절로 균형잡힌 추천 제공
     features = (
@@ -291,9 +288,6 @@ def show_user_click_vs_recommendation(user_id, interaction_df, recommend_df, bra
 
     print("\n📍 방문 브랜드 (RECENT):")
     print(", ".join(recent_brands_names) if recent_brands_names else "없음")
-
-# 예시: 사용자 ID 2번에 대해 시각화
-# plot_user_category_distribution(user_id=2, interaction_df=interaction_df, recommend_df=recommend_df, brand_df=brand_df)
 
 for i in range(1,10) :
     print(f"user : {i}")
