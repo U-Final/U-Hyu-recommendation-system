@@ -194,12 +194,6 @@ for user_id in user_df["user_id"]:
 
 recommend_df = pd.DataFrame(recommendations)
 
-# 브랜드 카테고리 정보 추가 : 추천 결과에 카테고리 ID를 미리 병합
-recommend_df = recommend_df.merge(
-    brand_df[["brand_id", "category_id"]],
-    on="brand_id",
-    how="left"
-)
 recommend_df["updated_at"] = datetime.now(timezone.utc)
 
 # 배치 INSERT (executemany 방식)
@@ -208,10 +202,10 @@ recommend_df["created_at"] = datetime.now(timezone.utc)
 with engine.begin() as conn:
     conn.execute(
         text("""
-            INSERT INTO recommendation (user_id, brand_id, category_id, score, rank, created_at, updated_at)
-            VALUES (:user_id, :brand_id, :category_id, :score, :rank, :created_at, :updated_at)
+            INSERT INTO recommendation (user_id, brand_id, score, rank, created_at, updated_at)
+            VALUES (:user_id, :brand_id, :score, :rank, :created_at, :updated_at)
         """),
-        recommend_df[["user_id", "brand_id", "category_id", "score", "rank", "created_at", "updated_at"]].to_dict("records")
+        recommend_df[["user_id", "brand_id", "score", "rank", "created_at", "updated_at"]].to_dict("records")
     )
 
 # 7. 추천 결과 CSV로 저장
