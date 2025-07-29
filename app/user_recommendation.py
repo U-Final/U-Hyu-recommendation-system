@@ -1,7 +1,5 @@
 import os
 import pandas as pd
-# 추천 결과와 클릭 행동 간의 카테고리 분포를 시각화하는 코드입니다.
-# 필요 라이브러리인 matplotlib과 seaborn을 import합니다.
 import matplotlib.pyplot as plt
 from sqlalchemy import create_engine, text
 from lightfm import LightFM
@@ -35,12 +33,31 @@ with engine.connect() as conn:
     )).fetchall(), columns=["user_id", "gender", "age_range"])
 
     # 온보딩 정보
-    onboarding_df = pd.DataFrame(conn.execute(text(
+    # onboarding_df = pd.DataFrame(conn.execute(text(
+    #     """
+    #     SELECT user_id, brand_id, data_type
+    #     FROM recommendation_base_data
+    #     """
+    # )).fetchall(), columns=["user_id", "brand_id", "data_type"])
+
+    # 유저 관심 및 방문 브랜드 정보
+    user_brand_df = pd.DataFrame(conn.execute(text(
         """
-        SELECT user_id, brand_id, data_type
-        FROM recommendation_base_data
+            SELECT user_id, brand_id, data_type FROM (
+            
+            -- 관심 브랜드 (recommendation_base_data)
+            SELECT user_id, brand_id, 'INTEREST' as data_type
+            FROM recommendation_base_data
+
+            UNION
+
+            -- 방문 브랜드 (history 테이블의 brand_id 사용)
+            SELECT DISTINCT user_id, brand_id, 'RECENT' as data_type
+            FROM history
+            WHERE visited_at IS NOT NULL
+        ) AS combined
         """
-    )).fetchall(), columns=["user_id", "brand_id", "data_type"])
+    )))
 
     # 브랜드 & 카테고리 정보
     brand_df = pd.DataFrame(conn.execute(text(
@@ -74,15 +91,14 @@ with engine.connect() as conn:
 # 4. 온보딩 기반 user_feature 구성
 user_feature_map = defaultdict(list)
 
-for user_id, group in onboarding_df.groupby("user_id"):
-    recent = group[group["data_type"] == "RECENT"]["brand_id"].tolist()[:6] # 방문 브랜드 최대 6개까지 추출
-    interest = group[group["data_type"] == "INTEREST"]["brand_id"].tolist()[:4] # 관심 브랜드 최대 4개까지 추출
+for user_id, group in user_brand_df.groupby("user_id"):
+    recent = group[group["data_type"] == "RECENT"]["brand_id"].tolist()[:6]
+    interest = group[group["data_type"] == "INTEREST"]["brand_id"].tolist()[:3]
 
-    # 브랜드 아이디에 prefix를 붙여서 feature로 만듦
-    # recent 3배, interest 2배로 강조
+    # 관심 브랜드는 3개 있음 -> RECENT 데이터와의 편차를 줄이기 위해 가중치 조절로 균형잡힌 추천 제공
     features = (
-            [f"recent_{b}" for b in recent] * 3 +
-            [f"interest_{b}" for b in interest] * 2
+            [f"recent_{b}" for b in recent] * 2 +
+            [f"interest_{b}" for b in interest] * 3
     )
 
     # category 정보도 함께 반영
@@ -114,7 +130,7 @@ users_without_logs = all_users - users_with_logs
 # dummy_interactions 생성: 온보딩 기반, 가중치 반영
 dummy_interactions = []
 for user_id in users_without_logs:
-    onboarding_rows = onboarding_df[onboarding_df["user_id"] == user_id]
+    onboarding_rows = user_brand_df[user_brand_df["user_id"] == user_id]
     recent = onboarding_rows[onboarding_rows["data_type"] == "RECENT"]["brand_id"].tolist()
     interest = onboarding_rows[onboarding_rows["data_type"] == "INTEREST"]["brand_id"].tolist()
 
@@ -175,12 +191,6 @@ for user_id in user_df["user_id"]:
 
 recommend_df = pd.DataFrame(recommendations)
 
-# 브랜드 카테고리 정보 추가 : 추천 결과에 카테고리 ID를 미리 병합
-recommend_df = recommend_df.merge(
-    brand_df[["brand_id", "category_id"]],
-    on="brand_id",
-    how="left"
-)
 recommend_df["updated_at"] = datetime.now(timezone.utc)
 
 # 배치 INSERT (executemany 방식)
@@ -189,10 +199,10 @@ recommend_df["created_at"] = datetime.now(timezone.utc)
 with engine.begin() as conn:
     conn.execute(
         text("""
-            INSERT INTO recommendation (user_id, brand_id, category_id, score, rank, created_at, updated_at)
-            VALUES (:user_id, :brand_id, :category_id, :score, :rank, :created_at, :updated_at)
+            INSERT INTO recommendation (user_id, brand_id, score, rank, created_at, updated_at)
+            VALUES (:user_id, :brand_id, :score, :rank, :created_at, :updated_at)
         """),
-        recommend_df[["user_id", "brand_id", "category_id", "score", "rank", "created_at", "updated_at"]].to_dict("records")
+        recommend_df[["user_id", "brand_id", "score", "rank", "created_at", "updated_at"]].to_dict("records")
     )
 
 # 7. 추천 결과 CSV로 저장
@@ -266,11 +276,11 @@ def show_user_click_vs_recommendation(user_id, interaction_df, recommend_df, bra
     print(recommended.to_string(index=False))
 
     # 관심 브랜드
-    interest_brands = onboarding_df[(onboarding_df["user_id"] == user_id) & (onboarding_df["data_type"] == "INTEREST")]["brand_id"]
+    interest_brands = user_brand_df[(user_brand_df["user_id"] == user_id) & (user_brand_df["data_type"] == "INTEREST")]["brand_id"]
     interest_brands_names = brand_df[brand_df["brand_id"].isin(interest_brands)]["brand_name"].tolist()
 
     # 방문 브랜드
-    recent_brands = onboarding_df[(onboarding_df["user_id"] == user_id) & (onboarding_df["data_type"] == "RECENT")]["brand_id"]
+    recent_brands = user_brand_df[(user_brand_df["user_id"] == user_id) & (user_brand_df["data_type"] == "RECENT")]["brand_id"]
     recent_brands_names = brand_df[brand_df["brand_id"].isin(recent_brands)]["brand_name"].tolist()
 
     print("\n⭐ 관심 브랜드 (INTEREST):")
@@ -279,10 +289,7 @@ def show_user_click_vs_recommendation(user_id, interaction_df, recommend_df, bra
     print("\n📍 방문 브랜드 (RECENT):")
     print(", ".join(recent_brands_names) if recent_brands_names else "없음")
 
-# 예시: 사용자 ID 2번에 대해 시각화
-# plot_user_category_distribution(user_id=2, interaction_df=interaction_df, recommend_df=recommend_df, brand_df=brand_df)
-
-for i in range(1, 30) :
+for i in range(1,10) :
     print(f"user : {i}")
     show_user_click_vs_recommendation(user_id=i, interaction_df=interaction_df, recommend_df=recommend_df,
                                       brand_df=brand_df)
