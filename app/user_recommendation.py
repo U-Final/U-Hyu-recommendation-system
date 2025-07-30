@@ -86,25 +86,38 @@ with engine.connect() as conn:
     # 같은 브랜드를 여러 번 클릭한 경우 가중치 누적 합산
     interaction_df = interaction_raw.groupby(["user_id", "brand_id"])["weight"].sum().reset_index()
 
-    # 즐겨찾기 목록 정보
+    # 즐겨찾기 브랜드 정보 로딩
+    bookmark_df = pd.DataFrame(conn.execute(text(
+        """
+        SELECT bl.user_id, s.brand_id
+        FROM bookmark b
+        JOIN bookmark_list bl ON b.bookmark_list_id = bl.id
+        JOIN store s ON b.store_id = s.id
+        """
+    )).fetchall(), columns=["user_id", "brand_id"])
 
 # 4. 온보딩 기반 user_feature 구성
 user_feature_map = defaultdict(list)
 
+# 북마크 기반 유저별 브랜드 리스트 생성
+bookmark_map = bookmark_df.groupby("user_id")["brand_id"].apply(list).to_dict()
+
 for user_id, group in user_brand_df.groupby("user_id"):
     recent = group[group["data_type"] == "RECENT"]["brand_id"].tolist()[:6]
     interest = group[group["data_type"] == "INTEREST"]["brand_id"].tolist()[:3]
+    bookmarked = bookmark_map.get(user_id, [])[:5]
 
     # 관심 브랜드는 3개 있음 -> RECENT 데이터와의 편차를 줄이기 위해 가중치 조절로 균형잡힌 추천 제공
     features = (
             [f"recent_{b}" for b in recent] * 2 +
-            [f"interest_{b}" for b in interest] * 3
+            [f"interest_{b}" for b in interest] * 3 +
+            [f"bookmark_{b}" for b in bookmarked] * 2
     )
 
     # category 정보도 함께 반영
     brand_to_category = dict(zip(brand_df["brand_id"], brand_df["category_id"]))
     category_ids = set()
-    for b in recent + interest:
+    for b in recent + interest + bookmarked :
         category_id = brand_to_category.get(b)
         if category_id is not None:
             category_ids.add(category_id)
@@ -159,32 +172,30 @@ model.fit(interactions, sample_weight=weights, user_features=user_features, epoc
 # 6. 추천 생성
 print("📊 사용자별 추천 생성 중...")
 
-all_item_ids = brand_df["brand_id"].tolist()
+# brand_id ↔ item_index 매핑
+_, _, item_mapping, _ = dataset.mapping()
+brand_id_to_index = item_mapping
+index_to_brand_id = {v: k for k, v in brand_id_to_index.items()}
+
+item_indices = list(index_to_brand_id.keys())
+
 recommendations = []
 
 for user_id in user_df["user_id"]:
-#     scores = model.predict(
-#         user_ids=[user_df[user_df["user_id"] == user_id].index[0]],
-#         item_ids=np.arange(len(all_item_ids)),
-#         user_features=user_features
-#     )
     user_index = user_df[user_df["user_id"] == user_id].index[0]
-    user_id_array = np.full(len(all_item_ids), user_index)
-
     scores = model.predict(
-        user_ids=user_id_array,
-        item_ids=np.arange(len(all_item_ids)),
+        user_ids=user_index,
+        item_ids=np.array(item_indices),
         user_features=user_features
     )
-
     top_k_indices = np.argsort(-scores)[:5]
-    top_k = [(all_item_ids[i], scores[i]) for i in top_k_indices]
-
-    for rank, (brand_id, score) in enumerate(top_k, start=1):
+    for rank, idx in enumerate(top_k_indices, start=1):
+        brand_id = index_to_brand_id[item_indices[idx]]
+        score = scores[idx]
         recommendations.append({
             "user_id": user_id,
             "brand_id": brand_id,
-            "score": float(score),
+            "score": float(score) * 100,
             "rank": rank,
             "created_at": datetime.now(timezone.utc)
         })
@@ -289,7 +300,7 @@ def show_user_click_vs_recommendation(user_id, interaction_df, recommend_df, bra
     print("\n📍 방문 브랜드 (RECENT):")
     print(", ".join(recent_brands_names) if recent_brands_names else "없음")
 
-for i in range(1,10) :
+for i in range(7,8) :
     print(f"user : {i}")
     show_user_click_vs_recommendation(user_id=i, interaction_df=interaction_df, recommend_df=recommend_df,
                                       brand_df=brand_df)
