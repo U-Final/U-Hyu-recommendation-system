@@ -86,25 +86,38 @@ with engine.connect() as conn:
     # 같은 브랜드를 여러 번 클릭한 경우 가중치 누적 합산
     interaction_df = interaction_raw.groupby(["user_id", "brand_id"])["weight"].sum().reset_index()
 
-    # 즐겨찾기 목록 정보
+    # 즐겨찾기 브랜드 정보 로딩
+    bookmark_df = pd.DataFrame(conn.execute(text(
+        """
+        SELECT bl.user_id, s.brand_id
+        FROM bookmark b
+        JOIN bookmark_list bl ON b.bookmark_list_id = bl.id
+        JOIN store s ON b.store_id = s.id
+        """
+    )).fetchall(), columns=["user_id", "brand_id"])
 
 # 4. 온보딩 기반 user_feature 구성
 user_feature_map = defaultdict(list)
 
+# 북마크 기반 유저별 브랜드 리스트 생성
+bookmark_map = bookmark_df.groupby("user_id")["brand_id"].apply(list).to_dict()
+
 for user_id, group in user_brand_df.groupby("user_id"):
     recent = group[group["data_type"] == "RECENT"]["brand_id"].tolist()[:6]
     interest = group[group["data_type"] == "INTEREST"]["brand_id"].tolist()[:3]
+    bookmarked = bookmark_map.get(user_id, [])[:5]
 
     # 관심 브랜드는 3개 있음 -> RECENT 데이터와의 편차를 줄이기 위해 가중치 조절로 균형잡힌 추천 제공
     features = (
             [f"recent_{b}" for b in recent] * 2 +
-            [f"interest_{b}" for b in interest] * 3
+            [f"interest_{b}" for b in interest] * 3 +
+            [f"bookmark_{b}" for b in bookmarked] * 2
     )
 
     # category 정보도 함께 반영
     brand_to_category = dict(zip(brand_df["brand_id"], brand_df["category_id"]))
     category_ids = set()
-    for b in recent + interest:
+    for b in recent + interest + bookmarked :
         category_id = brand_to_category.get(b)
         if category_id is not None:
             category_ids.add(category_id)
