@@ -172,32 +172,30 @@ model.fit(interactions, sample_weight=weights, user_features=user_features, epoc
 # 6. 추천 생성
 print("📊 사용자별 추천 생성 중...")
 
-all_item_ids = brand_df["brand_id"].tolist()
+# brand_id ↔ item_index 매핑
+_, _, item_mapping, _ = dataset.mapping()
+brand_id_to_index = item_mapping
+index_to_brand_id = {v: k for k, v in brand_id_to_index.items()}
+
+item_indices = list(index_to_brand_id.keys())
+
 recommendations = []
 
 for user_id in user_df["user_id"]:
-#     scores = model.predict(
-#         user_ids=[user_df[user_df["user_id"] == user_id].index[0]],
-#         item_ids=np.arange(len(all_item_ids)),
-#         user_features=user_features
-#     )
     user_index = user_df[user_df["user_id"] == user_id].index[0]
-    user_id_array = np.full(len(all_item_ids), user_index)
-
     scores = model.predict(
-        user_ids=user_id_array,
-        item_ids=np.arange(len(all_item_ids)),
+        user_ids=user_index,
+        item_ids=np.array(item_indices),
         user_features=user_features
     )
-
     top_k_indices = np.argsort(-scores)[:5]
-    top_k = [(all_item_ids[i], scores[i]) for i in top_k_indices]
-
-    for rank, (brand_id, score) in enumerate(top_k, start=1):
+    for rank, idx in enumerate(top_k_indices, start=1):
+        brand_id = index_to_brand_id[item_indices[idx]]
+        score = scores[idx]
         recommendations.append({
             "user_id": user_id,
             "brand_id": brand_id,
-            "score": float(score),
+            "score": float(score) * 100,
             "rank": rank,
             "created_at": datetime.now(timezone.utc)
         })
@@ -302,7 +300,7 @@ def show_user_click_vs_recommendation(user_id, interaction_df, recommend_df, bra
     print("\n📍 방문 브랜드 (RECENT):")
     print(", ".join(recent_brands_names) if recent_brands_names else "없음")
 
-for i in range(1,10) :
+for i in range(7,8) :
     print(f"user : {i}")
     show_user_click_vs_recommendation(user_id=i, interaction_df=interaction_df, recommend_df=recommend_df,
                                       brand_df=brand_df)
