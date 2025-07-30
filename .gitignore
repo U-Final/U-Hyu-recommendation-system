@@ -23,4 +23,4 @@ Thumbs.db
 # Project specific
 *.log
 *.csv
-recommendations.csv
+app/recommendations.csv
