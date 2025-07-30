@@ -2,6 +2,7 @@ psycopg2-binary==2.9.10
 python-dotenv==1.1.1
 SQLAlchemy==2.0.41
 typing_extensions==4.14.1
-pandas==2.2.2
-numpy==1.26.4
+pandas==2.3.1
+matplotlib==3.9.4
+numpy==2.0.2
 lightfm==1.17
