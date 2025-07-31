@@ -184,7 +184,7 @@ recommendations = []
 for user_id in user_df["user_id"]:
     user_index = user_df[user_df["user_id"] == user_id].index[0]
     scores = model.predict(
-        user_ids=user_index,
+        user_ids=np.repeat(user_index, len(item_indices)),
         item_ids=np.array(item_indices),
         user_features=user_features
     )
