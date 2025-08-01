@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-@router.get("/recommend-user")
+@router.get("/recommendation-user")
 def recommend_on_demand(request: Request):
     try:
         # 0. 쿠키에서 user_id 추출
