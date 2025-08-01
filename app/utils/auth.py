@@ -19,6 +19,6 @@ def get_current_user_id_from_token(request: Request) -> int:
             raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
         return int(user_id)
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="토큰이 만료되었습니다.")
+        raise HTTPException(status_code=401, detail="토큰이 만료되었습니다.") from None
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.") from None
