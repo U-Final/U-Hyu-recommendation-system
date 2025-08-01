@@ -1,13 +1,8 @@
 import pandas as pd
 from sqlalchemy import text
 
-# def load_user_data(conn):
-#     return pd.DataFrame(conn.execute(text(
-#         "SELECT id, gender, age_range FROM users"
-#     )).fetchall(), columns=["user_id", "gender", "age_range"])
-
 def load_user_data(conn, user_ids=None):
-    if user_ids:
+    if user_ids is not None and len(user_ids) > 0:
         placeholder = ','.join([':id{}'.format(i) for i in range(len(user_ids))])
         params = {f'id{i}': uid for i, uid in enumerate(user_ids)}
         query = f"SELECT id, gender, age_range FROM users WHERE id IN ({placeholder})"
@@ -30,7 +25,7 @@ def load_user_brand_data(conn, user_ids=None):
             SELECT DISTINCT user_id, brand_id, 'RECENT' as data_type FROM history WHERE visited_at IS NOT NULL
         ) AS combined
     """
-    if user_ids:
+    if user_ids is not None and len(user_ids) > 0:
         placeholder = ','.join([f':id{i}' for i in range(len(user_ids))])
         base_query += f" WHERE user_id IN ({placeholder})"
         params = {f'id{i}': uid for i, uid in enumerate(user_ids)}
@@ -47,7 +42,7 @@ def load_interaction_data(conn, user_ids=None):
         JOIN brands b ON s.brand_id = b.id
         WHERE al.action_type IN ('MARKER_CLICK', 'FILTER_USED')
     """
-    if user_ids:
+    if user_ids is not None and len(user_ids) > 0:
         placeholder = ','.join([f':id{i}' for i in range(len(user_ids))])
         base_query += f" AND al.user_id IN ({placeholder})"
         params = {f'id{i}': uid for i, uid in enumerate(user_ids)}
@@ -67,7 +62,7 @@ def load_bookmark_data(conn, user_ids=None):
         JOIN bookmark_list bl ON b.bookmark_list_id = bl.id
         JOIN store s ON b.store_id = s.id
     """
-    if user_ids:
+    if user_ids is not None and len(user_ids) > 0:
         placeholder = ','.join([f':id{i}' for i in range(len(user_ids))])
         base_query += f" WHERE bl.user_id IN ({placeholder})"
         params = {f'id{i}': uid for i, uid in enumerate(user_ids)}
