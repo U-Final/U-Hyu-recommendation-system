@@ -33,9 +33,14 @@ def main():
         bookmark_df = load_bookmark_data(conn)
         print(f"⭐ 즐겨찾기 수: {len(bookmark_df)}")
 
+        print("📥 EXCLUDE 브랜드 로딩 중...")
+        exclude_brand_df = load_exclude_brands(conn)
+        exclude_brand_ids = set(exclude_brand_df["brand_id"].tolist())
+        print(f"🚫 제외 브랜드 수: {len(exclude_brand_ids)}")
+
     # 피처 생성
     print("🛠️ 사용자 피처 생성 중...")
-    user_feature_map = build_user_features(user_brand_df, bookmark_df, brand_df)
+    user_feature_map = build_user_features(user_brand_df, bookmark_df, brand_df, exclude_brand_ids=exclude_brand_ids)
 
     print("📦 데이터셋 구성 중...")
     dataset = prepare_dataset(user_df, brand_df, user_feature_map)
@@ -52,7 +57,7 @@ def main():
 
     # 추천 생성
     print("📊 추천 결과 생성 중...")
-    recommend_df = generate_recommendations(user_df, brand_df, model, dataset, user_features)
+    recommend_df = generate_recommendations(user_df, brand_df, model, dataset, user_features, exclude_brand_ids=exclude_brand_ids)
     print(f"🎯 추천 결과 개수: {len(recommend_df)}")
 
     # DB 저장

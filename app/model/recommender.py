@@ -25,10 +25,14 @@ def _build_recommendation_result(user_id, scores, item_indices, index_to_brand_i
         for rank, idx in enumerate(top_k_indices, start=1)
     ]
 
-def generate_recommendations(user_df, brand_df, model, dataset, user_features, top_k=5):
+def generate_recommendations(user_df, brand_df, model, dataset, user_features, top_k=5, exclude_brand_ids=None):
     _, _, item_mapping, _ = dataset.mapping()
     index_to_brand_id = {v: k for k, v in item_mapping.items()}
-    item_indices = list(index_to_brand_id.keys())
+
+    if exclude_brand_ids:
+        item_indices = [idx for idx in index_to_brand_id if index_to_brand_id[idx] not in exclude_brand_ids]
+    else:
+        item_indices = list(index_to_brand_id.keys())
 
     results = []
     for user_id in user_df["user_id"]:
@@ -38,10 +42,14 @@ def generate_recommendations(user_df, brand_df, model, dataset, user_features, t
 
     return pd.DataFrame(results)
 
-def generate_recommendation_for_user(user_id, user_df, brand_df, model, dataset, user_features, top_k=5):
+def generate_recommendation_for_user(user_id, user_df, brand_df, model, dataset, user_features, top_k=5, exclude_brand_ids=None):
     _, _, item_mapping, _ = dataset.mapping()
     index_to_brand_id = {v: k for k, v in item_mapping.items()}
-    item_indices = list(index_to_brand_id.keys())
+
+    if exclude_brand_ids:
+        item_indices = [idx for idx in index_to_brand_id if index_to_brand_id[idx] not in exclude_brand_ids]
+    else:
+        item_indices = list(index_to_brand_id.keys())
 
     if user_id not in user_df["user_id"].values:
         return pd.DataFrame([])
