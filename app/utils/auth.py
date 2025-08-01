@@ -10,7 +10,6 @@ ALGORITHM = os.getenv("JWT_ALGORITHM")
 
 def get_current_user_id_from_token(request: Request) -> int:
     token = request.cookies.get("access_token")
-    print(f"[DEBUG] 받은 access_token: {token}")
     if not token:
         raise HTTPException(status_code=401, detail="Access token이 없습니다.")
     try:
