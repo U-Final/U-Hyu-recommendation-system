@@ -1,0 +1,11 @@
+psycopg2-binary==2.9.10
+python-dotenv==1.1.1
+SQLAlchemy==2.0.41
+typing_extensions==4.14.1
+pandas==2.3.1
+matplotlib==3.9.4
+numpy==2.0.2
+lightfm==1.17
+fastapi==0.116.1
+uvicorn==0.35.0
+PyJWT==2.10.1
