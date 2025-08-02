@@ -47,7 +47,7 @@ def recommend_on_demand(request_body: UserRequest):
             raise HTTPException(status_code=503, detail="데이터베이스 연결 실패") from e
 
         # 2. 사용자 피쳐 구성
-        user_feature_map = build_user_features(user_brand_df, bookmark_df, brand_df)
+        user_feature_map = build_user_features(user_brand_df, bookmark_df, brand_df, exclude_brand_ids)
 
         # 3. dataset 구성
         dataset = prepare_dataset(user_df, brand_df, user_feature_map)
@@ -59,7 +59,7 @@ def recommend_on_demand(request_body: UserRequest):
 
         # 5. 추천 생성
         recommend_df = generate_recommendation_for_user(
-            user_id, user_df, brand_df, model, dataset, user_features
+            user_id, user_df, brand_df, model, dataset, user_features, exclude_brand_ids=exclude_brand_ids
         )
 
         if recommend_df.empty:
