@@ -88,4 +88,4 @@ def trigger_batch():
         return JSONResponse(status_code=200, content={"message": "Batch recommendation process executed successfully."})
     except Exception as e:
         logger.error("배치 실행 중 오류 발생", exc_info=True)
-        raise HTTPException(status_code=500, detail="배치 실행 실패")
+        raise HTTPException(status_code=500, detail="배치 실행 실패") from e
