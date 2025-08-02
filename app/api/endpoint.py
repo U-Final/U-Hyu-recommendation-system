@@ -12,6 +12,7 @@ from app.data.loader import (
 from app.features.builder import build_user_features
 from app.model.trainer import prepare_dataset, build_interactions, train_model
 from app.saver.db_saver import save_to_db
+from app.data.loader import load_exclude_brands
 import logging
 import pandas as pd
 
@@ -38,26 +39,29 @@ def recommend_on_demand(request_body: UserRequest):
                 interaction_df = load_interaction_data(conn, user_ids=[user_id])
                 bookmark_df = load_bookmark_data(conn, user_ids=[user_id])
 
-                exclude_query = f"""
-                    SELECT combined.brand_id
-                    FROM (
-                        SELECT user_id, brand_id, 'INTEREST' as data_type 
-                        FROM recommendation_base_data WHERE data_type = 'INTEREST'
-                        UNION
-                        SELECT DISTINCT user_id, brand_id, 'RECENT' as data_type 
-                        FROM history WHERE visited_at IS NOT NULL
-                    ) AS combined
-                    LEFT JOIN recommendation_base_data rbd 
-                      ON combined.user_id = rbd.user_id 
-                     AND combined.brand_id = rbd.brand_id 
-                     AND rbd.data_type = 'EXCLUDE'
-                    WHERE rbd.id IS NULL
-                      AND combined.user_id = {user_id}
-                """
-                exclude_brand_ids = pd.read_sql(exclude_query, conn)["brand_id"].tolist()
-                brand_df = brand_df[~brand_df["brand_id"].isin(exclude_brand_ids)]
-                interaction_df = interaction_df[~interaction_df["brand_id"].isin(exclude_brand_ids)]
-                user_brand_df = user_brand_df[~user_brand_df["brand_id"].isin(exclude_brand_ids)]
+                # exclude_query = f"""
+                #     SELECT combined.brand_id
+                #     FROM (
+                #         SELECT user_id, brand_id, 'INTEREST' as data_type
+                #         FROM recommendation_base_data WHERE data_type = 'INTEREST'
+                #         UNION
+                #         SELECT DISTINCT user_id, brand_id, 'RECENT' as data_type
+                #         FROM history WHERE visited_at IS NOT NULL
+                #     ) AS combined
+                #     LEFT JOIN recommendation_base_data rbd
+                #       ON combined.user_id = rbd.user_id
+                #      AND combined.brand_id = rbd.brand_id
+                #      AND rbd.data_type = 'EXCLUDE'
+                #     WHERE rbd.id IS NULL
+                #       AND combined.user_id = {user_id}
+                # """
+                # exclude_brand_ids = pd.read_sql(exclude_query, conn)["brand_id"].tolist()
+                # brand_df = brand_df[~brand_df["brand_id"].isin(exclude_brand_ids)]
+                # interaction_df = interaction_df[~interaction_df["brand_id"].isin(exclude_brand_ids)]
+                # user_brand_df = user_brand_df[~user_brand_df["brand_id"].isin(exclude_brand_ids)]
+
+                exclude_brand_df = load_exclude_brands(conn, user_ids=[user_id])
+                exclude_brand_ids = set(exclude_brand_df["brand_id"].tolist())
 
         except Exception as e:
             logger.error(f"데이터베이스 연결 또는 데이터 로드 실패: {e}")

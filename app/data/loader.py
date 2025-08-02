@@ -82,18 +82,18 @@ def load_bookmark_data(conn, user_ids=None):
         result = conn.execute(text(base_query))
 
     return pd.DataFrame(result.fetchall(), columns=["user_id", "brand_id"])
+
 def load_exclude_brands(conn, user_ids=None):
     base_query = """
         SELECT user_id, brand_id
         FROM recommendation_base_data
         WHERE data_type = 'EXCLUDE'
     """
-    if user_ids is not None and len(user_ids) > 0:
+    params = {}
+    if user_ids:
         placeholder = ','.join([f':id{i}' for i in range(len(user_ids))])
         base_query += f" AND user_id IN ({placeholder})"
         params = {f'id{i}': uid for i, uid in enumerate(user_ids)}
-        result = conn.execute(text(base_query), params)
-    else:
-        result = conn.execute(text(base_query))
 
+    result = conn.execute(text(base_query), params)
     return pd.DataFrame(result.fetchall(), columns=["user_id", "brand_id"])
