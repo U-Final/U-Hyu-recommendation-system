@@ -2,7 +2,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.model.recommender import generate_recommendation_for_user
 from app.config.database import get_engine
-from app.data.loader import load_user_data, load_brand_data, load_user_brand_data, load_interaction_data, load_bookmark_data
+from app.data.loader import (
+    load_user_data,
+    load_brand_data,
+    load_user_brand_data,
+    load_interaction_data,
+    load_bookmark_data,
+)
 from app.features.builder import build_user_features
 from app.model.trainer import prepare_dataset, build_interactions, train_model
 from app.saver.db_saver import save_to_db

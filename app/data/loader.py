@@ -32,7 +32,7 @@ def load_user_brand_data(conn, user_ids=None):
     """
     if user_ids is not None and len(user_ids) > 0:
         placeholder = ','.join([f':id{i}' for i in range(len(user_ids))])
-        base_query += f" AND user_id IN ({placeholder})"
+        base_query += f" AND combined.user_id IN ({placeholder})"
         params = {f'id{i}': uid for i, uid in enumerate(user_ids)}
         result = conn.execute(text(base_query), params)
     else:
