@@ -20,7 +20,7 @@ class UserRequest(BaseModel):
 def recommend_on_demand(request_body: UserRequest):
     try:
         user_id = request_body.user_id
-        logger.info(f"[추천 API] 요청 바디에서 받은 user_id: {user_id}")
+        print(f"[추천 API] 요청 바디에서 받은 user_id: {user_id}")
 
         # 1. DB 연결
         try:
@@ -33,10 +33,20 @@ def recommend_on_demand(request_body: UserRequest):
                 bookmark_df = load_bookmark_data(conn, user_ids=[user_id])
 
                 exclude_query = f"""
-                    SELECT brand_id
-                    FROM recommendation_base_data
-                    WHERE user_id = {user_id}
-                      AND data_type = 'EXCLUDE'
+                    SELECT combined.brand_id
+                    FROM (
+                        SELECT user_id, brand_id, 'INTEREST' as data_type 
+                        FROM recommendation_base_data WHERE data_type = 'INTEREST'
+                        UNION
+                        SELECT DISTINCT user_id, brand_id, 'RECENT' as data_type 
+                        FROM history WHERE visited_at IS NOT NULL
+                    ) AS combined
+                    LEFT JOIN recommendation_base_data rbd 
+                      ON combined.user_id = rbd.user_id 
+                     AND combined.brand_id = rbd.brand_id 
+                     AND rbd.data_type = 'EXCLUDE'
+                    WHERE rbd.id IS NULL
+                      AND combined.user_id = {user_id}
                 """
                 exclude_brand_ids = pd.read_sql(exclude_query, conn)["brand_id"].tolist()
                 brand_df = brand_df[~brand_df["brand_id"].isin(exclude_brand_ids)]
