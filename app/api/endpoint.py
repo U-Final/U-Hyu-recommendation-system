@@ -39,27 +39,6 @@ def recommend_on_demand(request_body: UserRequest):
                 interaction_df = load_interaction_data(conn, user_ids=[user_id])
                 bookmark_df = load_bookmark_data(conn, user_ids=[user_id])
 
-                # exclude_query = f"""
-                #     SELECT combined.brand_id
-                #     FROM (
-                #         SELECT user_id, brand_id, 'INTEREST' as data_type
-                #         FROM recommendation_base_data WHERE data_type = 'INTEREST'
-                #         UNION
-                #         SELECT DISTINCT user_id, brand_id, 'RECENT' as data_type
-                #         FROM history WHERE visited_at IS NOT NULL
-                #     ) AS combined
-                #     LEFT JOIN recommendation_base_data rbd
-                #       ON combined.user_id = rbd.user_id
-                #      AND combined.brand_id = rbd.brand_id
-                #      AND rbd.data_type = 'EXCLUDE'
-                #     WHERE rbd.id IS NULL
-                #       AND combined.user_id = {user_id}
-                # """
-                # exclude_brand_ids = pd.read_sql(exclude_query, conn)["brand_id"].tolist()
-                # brand_df = brand_df[~brand_df["brand_id"].isin(exclude_brand_ids)]
-                # interaction_df = interaction_df[~interaction_df["brand_id"].isin(exclude_brand_ids)]
-                # user_brand_df = user_brand_df[~user_brand_df["brand_id"].isin(exclude_brand_ids)]
-
                 exclude_brand_df = load_exclude_brands(conn, user_ids=[user_id])
                 exclude_brand_ids = set(exclude_brand_df["brand_id"].tolist())
 
