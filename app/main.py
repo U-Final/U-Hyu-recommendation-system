@@ -1,15 +1,14 @@
-from config.database import get_engine
-from data.loader import *
-from features.builder import build_user_features
-from model.trainer import prepare_dataset, build_interactions, train_model
-from model.recommender import generate_recommendations
-from saver.db_saver import save_to_db
-from saver.file_exporter import save_to_csv
+from app.config.database import get_engine
+from app.data.loader import *
+from app.features.builder import build_user_features
+from app.model.trainer import prepare_dataset, build_interactions, train_model
+from app.model.recommender import generate_recommendations
+from app.saver.db_saver import save_to_db
+from app.saver.file_exporter import save_to_csv
 
 def main():
     print("🚀 추천 시스템 실행 중...")
 
-    # DB 연결
     print("🔌 DB 연결 중...")
     engine = get_engine()
     with engine.connect() as conn:
