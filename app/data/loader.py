@@ -19,15 +19,20 @@ def load_brand_data(conn):
 
 def load_user_brand_data(conn, user_ids=None):
     base_query = """
-        SELECT user_id, brand_id, data_type FROM (
-            SELECT user_id, brand_id, 'INTEREST' as data_type FROM recommendation_base_data
+        SELECT combined.user_id, combined.brand_id, combined.data_type FROM (
+            SELECT user_id, brand_id, 'INTEREST' as data_type 
+            FROM recommendation_base_data WHERE data_type = 'INTEREST'
             UNION
-            SELECT DISTINCT user_id, brand_id, 'RECENT' as data_type FROM history WHERE visited_at IS NOT NULL
+            SELECT DISTINCT user_id, brand_id, 'RECENT' as data_type 
+            FROM history WHERE visited_at IS NOT NULL
         ) AS combined
+        LEFT JOIN recommendation_base_data rbd 
+          ON combined.user_id = rbd.user_id AND combined.brand_id = rbd.brand_id AND rbd.data_type = 'EXCLUDE'
+        WHERE rbd.id IS NULL
     """
     if user_ids is not None and len(user_ids) > 0:
         placeholder = ','.join([f':id{i}' for i in range(len(user_ids))])
-        base_query += f" WHERE user_id IN ({placeholder})"
+        base_query += f" AND combined.user_id IN ({placeholder})"
         params = {f'id{i}': uid for i, uid in enumerate(user_ids)}
         result = conn.execute(text(base_query), params)
     else:
@@ -40,7 +45,10 @@ def load_interaction_data(conn, user_ids=None):
         FROM action_logs al
         JOIN store s ON al.store_id = s.id
         JOIN brands b ON s.brand_id = b.id
+        LEFT JOIN recommendation_base_data rbd 
+          ON al.user_id = rbd.user_id AND b.id = rbd.brand_id AND rbd.data_type = 'EXCLUDE'
         WHERE al.action_type IN ('MARKER_CLICK', 'FILTER_USED')
+          AND rbd.id IS NULL
     """
     if user_ids is not None and len(user_ids) > 0:
         placeholder = ','.join([f':id{i}' for i in range(len(user_ids))])
@@ -61,13 +69,31 @@ def load_bookmark_data(conn, user_ids=None):
         FROM bookmark b
         JOIN bookmark_list bl ON b.bookmark_list_id = bl.id
         JOIN store s ON b.store_id = s.id
+        LEFT JOIN recommendation_base_data rbd 
+          ON bl.user_id = rbd.user_id AND s.brand_id = rbd.brand_id AND rbd.data_type = 'EXCLUDE'
+        WHERE rbd.id IS NULL
     """
     if user_ids is not None and len(user_ids) > 0:
         placeholder = ','.join([f':id{i}' for i in range(len(user_ids))])
-        base_query += f" WHERE bl.user_id IN ({placeholder})"
+        base_query += f" AND bl.user_id IN ({placeholder})"
         params = {f'id{i}': uid for i, uid in enumerate(user_ids)}
         result = conn.execute(text(base_query), params)
     else:
         result = conn.execute(text(base_query))
 
+    return pd.DataFrame(result.fetchall(), columns=["user_id", "brand_id"])
+
+def load_exclude_brands(conn, user_ids=None):
+    base_query = """
+        SELECT user_id, brand_id
+        FROM recommendation_base_data
+        WHERE data_type = 'EXCLUDE'
+    """
+    params = {}
+    if user_ids:
+        placeholder = ','.join([f':id{i}' for i in range(len(user_ids))])
+        base_query += f" AND user_id IN ({placeholder})"
+        params = {f'id{i}': uid for i, uid in enumerate(user_ids)}
+
+    result = conn.execute(text(base_query), params)
     return pd.DataFrame(result.fetchall(), columns=["user_id", "brand_id"])
