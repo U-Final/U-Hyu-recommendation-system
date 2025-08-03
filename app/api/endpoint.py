@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from app.model.recommender import generate_recommendation_for_user
 from app.config.database import get_engine
@@ -13,8 +14,8 @@ from app.features.builder import build_user_features
 from app.model.trainer import prepare_dataset, build_interactions, train_model
 from app.saver.db_saver import save_to_db
 from app.data.loader import load_exclude_brands
+from app.main import main as run_batch
 import logging
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -79,3 +80,12 @@ def recommend_on_demand(request_body: UserRequest):
     except Exception as e:
         logger.error("추천 생성 중 오류 발생", exc_info=True)
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.") from e
+
+@router.post("/trigger-batch")
+def trigger_batch():
+    try:
+        run_batch()
+        return JSONResponse(status_code=200, content={"message": "Batch recommendation process executed successfully."})
+    except Exception as e:
+        logger.error("배치 실행 중 오류 발생", exc_info=True)
+        raise HTTPException(status_code=500, detail="배치 실행 실패") from e
