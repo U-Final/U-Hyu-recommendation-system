@@ -1,4 +1,5 @@
 from collections import defaultdict
+import pandas as pd
 
 def build_user_features(user_brand_df, bookmark_df, brand_df, exclude_brand_ids=None):
     exclude_brand_ids = set(exclude_brand_ids or [])
@@ -24,3 +25,27 @@ def build_user_features(user_brand_df, bookmark_df, brand_df, exclude_brand_ids=
         user_feature_map[user_id] = features
 
     return user_feature_map
+
+def build_item_features(brand_df):
+    item_feature_map = {}
+
+    for _, row in brand_df.iterrows():
+        brand_id = row["brand_id"]
+        features = []
+
+        # 예시: 카테고리 정보
+        if not pd.isna(row.get("category_id")):
+            features.append(f"category_{int(row['category_id'])}")
+
+        # 예시: 온라인/오프라인
+        if not pd.isna(row.get("store_type")):
+            features.append(f"store_{row['store_type'].lower()}")
+
+        # 예시: 브랜드명 키워드 (간단 토크나이징)
+        if not pd.isna(row.get("brand_name")):
+            tokens = row["brand_name"].lower().split()
+            features += [f"name_{token}" for token in tokens]
+
+        item_feature_map[brand_id] = features
+
+    return item_feature_map

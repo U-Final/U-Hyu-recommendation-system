@@ -1,6 +1,6 @@
 from app.config.database import get_engine
 from app.data.loader import *
-from app.features.builder import build_user_features
+from app.features.builder import build_user_features, build_item_features
 from app.model.trainer import prepare_dataset, build_interactions, train_model
 from app.model.recommender import generate_recommendations
 from app.saver.db_saver import save_to_db
@@ -44,6 +44,11 @@ def main():
     print("📦 데이터셋 구성 중...")
     dataset = prepare_dataset(user_df, brand_df, user_feature_map)
 
+    print("🛠️ 아이템 피처 생성 중...")
+    item_feature_map = build_item_features(brand_df)
+    dataset = prepare_dataset(user_df, brand_df, user_feature_map, item_feature_map)
+    item_features = dataset.build_item_features([(iid, feats) for iid, feats in item_feature_map.items()])
+
     print("🔧 인터랙션 + 가중치 매트릭스 구성 중...")
     interactions, weights = build_interactions(dataset, interaction_df, user_brand_df, brand_df)
 
@@ -52,11 +57,17 @@ def main():
 
     # 모델 학습
     print("🧠 LightFM 모델 학습 중...")
-    model = train_model(interactions, weights, user_features)
+    # model = train_model(interactions, weights, user_features)
+    model = train_model(interactions, weights, user_features, item_features)
 
     # 추천 생성
     print("📊 추천 결과 생성 중...")
-    recommend_df = generate_recommendations(user_df, brand_df, model, dataset, user_features, exclude_brand_ids=exclude_brand_ids)
+    # recommend_df = generate_recommendations(user_df, brand_df, model, dataset, user_features, exclude_brand_ids=exclude_brand_ids)
+    recommend_df = generate_recommendations(
+        user_df, brand_df, model, dataset,
+        user_features, item_features,
+        exclude_brand_ids=exclude_brand_ids
+    )
     print(f"🎯 추천 결과 개수: {len(recommend_df)}")
 
     # DB 저장
@@ -64,8 +75,8 @@ def main():
     save_to_db(engine, recommend_df)
 
     # CSV 저장
-    print("📄 추천 결과 CSV 저장 중...")
-    save_to_csv(recommend_df)
+    # print("📄 추천 결과 CSV 저장 중...")
+    # save_to_csv(recommend_df)
 
     print("✅ 추천 완료!")
 
