@@ -1,6 +1,10 @@
 import pandas as pd
 from sqlalchemy import text
 
+'''
+feature 생성
+'''
+
 def load_user_data(conn, user_ids=None):
     if user_ids is not None and len(user_ids) > 0:
         placeholder = ','.join([':id{}'.format(i) for i in range(len(user_ids))])

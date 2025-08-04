@@ -2,6 +2,10 @@ import numpy as np
 from datetime import datetime, timezone
 import pandas as pd
 
+'''
+LightFM 모델을 기반으로 상위 브랜드 추천 결과를 생성
+'''
+
 def _predict_user_scores(user_index, model, item_indices, user_features, item_features):
     scores = model.predict(
         user_ids=np.repeat(user_index, len(item_indices)),

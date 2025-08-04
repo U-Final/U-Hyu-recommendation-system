@@ -1,6 +1,10 @@
 from collections import defaultdict
 import pandas as pd
 
+'''
+LightFM 행렬 구성
+'''
+
 def build_user_features(user_brand_df, bookmark_df, brand_df, exclude_brand_ids=None):
     exclude_brand_ids = set(exclude_brand_ids or [])
 
@@ -33,11 +37,11 @@ def build_item_features(brand_df):
         brand_id = row["brand_id"]
         features = []
 
-        # 예시: 카테고리 정보
+        # 카테고리
         if not pd.isna(row.get("category_id")):
             features.append(f"category_{int(row['category_id'])}")
 
-        # 예시: 온라인/오프라인
+        # 온라인/오프라인
         if not pd.isna(row.get("store_type")):
             features.append(f"store_{row['store_type'].lower()}")
 

@@ -1,12 +1,9 @@
 from lightfm import LightFM
 from lightfm.data import Dataset
 
-# def prepare_dataset(user_df, brand_df, user_feature_map):
-#     dataset = Dataset()
-#     dataset.fit(users=user_df["user_id"], items=brand_df["brand_id"])
-#     all_user_features = set(f for feats in user_feature_map.values() for f in feats)
-#     dataset.fit_partial(user_features=all_user_features)
-#     return dataset
+'''
+LightFM 모델 학습을 위한 데이터셋 구성, 상호작용 행렬 생성, 모델 학습을 수행하는 전체 파이프라인 함수들을 정의
+'''
 
 def prepare_dataset(user_df, brand_df, user_feature_map, item_feature_map=None):
     dataset = Dataset()

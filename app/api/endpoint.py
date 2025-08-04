@@ -17,6 +17,10 @@ from app.data.loader import load_exclude_brands
 from app.main import main as run_batch
 import logging
 
+'''
+FastAPI 라우터 정의 및 api
+'''
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()

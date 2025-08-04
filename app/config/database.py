@@ -2,6 +2,10 @@ import os
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
 
+'''
+환경 설정, DB 연결 구성
+'''
+
 load_dotenv()
 
 def get_engine():
