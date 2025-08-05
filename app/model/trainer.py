@@ -1,4 +1,5 @@
 from lightfm.data import Dataset
+import random
 
 '''
 LightFM 모델 학습을 위한 데이터셋 구성, 상호작용 행렬 생성, 모델 학습을 수행하는 전체 파이프라인 함수들을 정의
@@ -35,7 +36,9 @@ def build_interactions(dataset, interaction_df, user_brand_df, brand_df):
         dummy_interactions += [(user_id, b, 3.0) for b in recent]
 
         if not interest and not recent:
-            dummy_interactions.append((user_id, brand_df["brand_id"].iloc[0], 1.0))
+            random.seed(user_id)
+            random_brand = random.choice(brand_df["brand_id"].tolist())
+            dummy_interactions.append((user_id, random_brand, 1.0))
 
     real = list(zip(interaction_df["user_id"], interaction_df["brand_id"], interaction_df["weight"]))
     return dataset.build_interactions(real + dummy_interactions)
