@@ -16,10 +16,23 @@ def load_user_data(conn, user_ids=None):
 
     return pd.DataFrame(result.fetchall(), columns=["user_id", "gender", "age_range"])
 
+# def load_brand_data(conn):
+#     return pd.DataFrame(conn.execute(text(
+#         "SELECT id, brand_name, category_id FROM brands"
+#     )).fetchall(), columns=["brand_id", "brand_name", "category_id"])
+
 def load_brand_data(conn):
     return pd.DataFrame(conn.execute(text(
-        "SELECT id, brand_name, category_id FROM brands"
-    )).fetchall(), columns=["brand_id", "brand_name", "category_id"])
+        """
+        SELECT 
+            b.id AS brand_id,
+            b.brand_name,
+            b.category_id,
+            c.category_name AS category_name
+        FROM brands b
+        JOIN categories c ON b.category_id = c.id
+        """
+    )).fetchall(), columns=["brand_id", "brand_name", "category_id", "category_name"])
 
 def load_user_brand_data(conn, user_ids=None):
     base_query = """

@@ -1,9 +1,12 @@
+from datetime import datetime
+from app.saver.db_saver import save_statistics
 from app.config.database import get_engine
 from app.data.loader import *
 from app.features.builder import build_user_features, build_item_features
 from app.model.trainer import prepare_dataset, build_interactions, train_model
 from app.model.recommender import generate_recommendations
 from app.saver.db_saver import save_to_db
+from app.utils.statistics import prepare_statistics_df
 from app.saver.file_exporter import save_to_csv
 
 def main():
@@ -76,6 +79,16 @@ def main():
     # CSV 저장
     # print("📄 추천 결과 CSV 저장 중...")
     # save_to_csv(recommend_df)
+
+    # 📊 통계용 데이터 구성
+    statistics_df = prepare_statistics_df(recommend_df, brand_df)
+
+    # DB에 통계 저장
+    try:
+        print("📥 통계 데이터 저장 중...")
+        save_statistics(engine, statistics_df)
+    except Exception as e:
+        print(f"❌ 통계 저장 중 오류 발생: {e}")
 
     print("✅ 추천 완료!")
 
