@@ -1,8 +1,9 @@
 from collections import defaultdict
 import pandas as pd
+import random
 
 '''
-LightFM 행렬 구성
+user, brand, interactions feature 구성
 '''
 
 def build_user_features(user_brand_df, bookmark_df, brand_df, exclude_brand_ids=None):
@@ -12,15 +13,19 @@ def build_user_features(user_brand_df, bookmark_df, brand_df, exclude_brand_ids=
     bookmark_map = bookmark_df.groupby("user_id")["brand_id"].apply(list).to_dict()
     brand_to_category = dict(zip(brand_df["brand_id"], brand_df["category_id"]))
 
+    # 최종적으로 부여되는 가중치 비중은 (최대로 데이터를 가져왔을 때) 최대 개수 * 가중치
+    # 관심 브랜드 > 방문 브랜드 > 즐겨찾기 블랜드
+    # 사용자마다 데이터 수의 편차가 있을 것이고, 아직은 초창기라 데이터가 많지 않을 것을 고려하여 다음과 같이 개수 지정
+    # 실사용자 받아서 몇개의 관심 브랜드 데이터 / 방문 브랜드 데이터 / 북마크 데이터가 몇개정도 저장하는지 확인해서 지정 예정
     for user_id, group in user_brand_df.groupby("user_id"):
-        recent = group[(group["data_type"] == "RECENT") & (~group["brand_id"].isin(exclude_brand_ids))]["brand_id"].tolist()[:6]
-        interest = group[(group["data_type"] == "INTEREST") & (~group["brand_id"].isin(exclude_brand_ids))]["brand_id"].tolist()[:3]
+        interest = group[(group["data_type"] == "INTEREST") & (~group["brand_id"].isin(exclude_brand_ids))]["brand_id"].tolist()[:5]
+        recent = group[(group["data_type"] == "RECENT") & (~group["brand_id"].isin(exclude_brand_ids))]["brand_id"].tolist()[:5]
         bookmarked = [b for b in bookmark_map.get(user_id, []) if b not in exclude_brand_ids][:5]
 
         features = (
-            [f"recent_{b}" for b in recent] * 2 +
             [f"interest_{b}" for b in interest] * 3 +
-            [f"bookmark_{b}" for b in bookmarked] * 2
+            [f"recent_{b}" for b in recent] * 2 +
+            [f"bookmark_{b}" for b in bookmarked] * 1
         )
 
         category_ids = {brand_to_category.get(b) for b in recent + interest + bookmarked if brand_to_category.get(b)}
@@ -59,3 +64,25 @@ def build_item_features(brand_df):
         item_feature_map[brand_id] = features
 
     return item_feature_map
+
+def build_interactions(dataset, interaction_df, user_brand_df, brand_df):
+    users_with_logs = set(interaction_df["user_id"])
+    all_users = set(user_brand_df["user_id"].unique())
+    users_without_logs = all_users - users_with_logs
+
+    dummy_interactions = []
+    for user_id in users_without_logs:
+        group = user_brand_df[user_brand_df["user_id"] == user_id]
+        recent = group[group["data_type"] == "RECENT"]["brand_id"].tolist()
+        interest = group[group["data_type"] == "INTEREST"]["brand_id"].tolist()
+
+        dummy_interactions += [(user_id, b, 2.0) for b in interest]
+        dummy_interactions += [(user_id, b, 3.0) for b in recent]
+
+        if not interest and not recent:
+            random.seed(user_id)
+            random_brand = random.choice(brand_df["brand_id"].tolist())
+            dummy_interactions.append((user_id, random_brand, 1.0))
+
+    real = list(zip(interaction_df["user_id"], interaction_df["brand_id"], interaction_df["weight"]))
+    return dataset.build_interactions(real + dummy_interactions)

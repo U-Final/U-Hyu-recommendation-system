@@ -10,8 +10,8 @@ from app.data.loader import (
     load_interaction_data,
     load_bookmark_data,
 )
-from app.features.builder import build_user_features
-from app.model.trainer import prepare_dataset, build_interactions, train_model
+from app.features.builder import build_user_features, build_interactions
+from app.model.trainer import prepare_dataset, train_model
 from app.saver.db_saver import save_to_db
 from app.data.loader import load_exclude_brands
 from app.main import main as run_batch
