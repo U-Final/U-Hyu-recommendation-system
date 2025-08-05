@@ -17,6 +17,8 @@ from app.data.loader import load_exclude_brands
 from app.main import main as run_batch
 import logging
 from app.features.builder import build_item_features
+from datetime import datetime
+from app.saver.db_saver import save_statistics
 
 '''
 FastAPI 라우터 정의 및 api
@@ -74,7 +76,31 @@ def recommend_on_demand(request_body: UserRequest):
             raise HTTPException(status_code=404, detail="추천할 브랜드가 없습니다.")
 
         # 6. DB 저장
-        save_to_db(engine, recommend_df, brand_df, category_df)
+        save_to_db(engine, recommend_df)
+
+        # 통계 저장을 위한 merge
+        statistics_df = recommend_df.merge(
+            brand_df[['brand_id', 'brand_name', 'category_id', 'category_name']],
+            on='brand_id',
+            how='left'
+        )
+
+        statistics_df = statistics_df[[
+            'user_id', 'brand_id', 'brand_name', 'category_id', 'category_name'
+        ]].copy()
+
+        statistics_df['my_map_list_id'] = None
+        statistics_df['store_id'] = None
+        statistics_df['statistics_type'] = 'RECOMMENDATION'
+        statistics_df['created_at'] = datetime.now()
+        statistics_df['updated_at'] = datetime.now()
+
+        statistics_df = statistics_df.dropna(subset=['brand_name', 'category_id', 'category_name'])
+
+        try:
+            save_statistics(engine, statistics_df)
+        except Exception as e:
+            logger.warning(f"추천 통계 저장 중 오류 발생: {e}")
 
         # 7. 응답 반환
         return {

@@ -1,3 +1,5 @@
+from datetime import datetime
+from app.saver.db_saver import save_statistics
 from app.config.database import get_engine
 from app.data.loader import *
 from app.features.builder import build_user_features, build_item_features
@@ -69,21 +71,41 @@ def main():
     )
     print(f"🎯 추천 결과 개수: {len(recommend_df)}")
 
-    # statistics에 저장하기 위한 데이터 생성
-    brand_df = pd.read_sql(
-        "SELECT id as brand_id, brand_name, category_id FROM brand", engine
-    )
-    category_df = pd.read_sql(
-        "SELECT id as category_id, name as category_name FROM category", engine
-    )
-
     # DB 저장
     print("💾 추천 결과 DB 저장 중...")
-    save_to_db(engine, recommend_df, brand_df, category_df)
+    save_to_db(engine, recommend_df)
 
     # CSV 저장
     # print("📄 추천 결과 CSV 저장 중...")
     # save_to_csv(recommend_df)
+
+    # 📊 통계용 데이터 구성
+    print("📊 통계 데이터 구성 중...")
+    statistics_df = recommend_df.merge(
+        brand_df[['brand_id', 'brand_name', 'category_id', 'category_name']],
+        on='brand_id',
+        how='left'
+    )
+
+    statistics_df = statistics_df[[
+        'user_id', 'brand_id', 'brand_name', 'category_id', 'category_name'
+    ]].copy()
+
+    statistics_df['my_map_list_id'] = None
+    statistics_df['store_id'] = None
+    statistics_df['statistics_type'] = 'RECOMMENDATION'
+    statistics_df['created_at'] = datetime.now()
+    statistics_df['updated_at'] = datetime.now()
+
+    # 누락된 브랜드 정보 제거
+    statistics_df = statistics_df.dropna(subset=['brand_name', 'category_id', 'category_name'])
+
+    # DB에 통계 저장
+    try:
+        print("📥 통계 데이터 저장 중...")
+        save_statistics(engine, statistics_df)
+    except Exception as e:
+        print(f"❌ 통계 저장 중 오류 발생: {e}")
 
     print("✅ 추천 완료!")
 
