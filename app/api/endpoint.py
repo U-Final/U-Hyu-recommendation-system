@@ -16,6 +16,11 @@ from app.saver.db_saver import save_to_db
 from app.data.loader import load_exclude_brands
 from app.main import main as run_batch
 import logging
+from app.features.builder import build_item_features
+
+'''
+FastAPI 라우터 정의 및 api
+'''
 
 logger = logging.getLogger(__name__)
 
@@ -51,16 +56,18 @@ def recommend_on_demand(request_body: UserRequest):
         user_feature_map = build_user_features(user_brand_df, bookmark_df, brand_df, exclude_brand_ids)
 
         # 3. dataset 구성
-        dataset = prepare_dataset(user_df, brand_df, user_feature_map)
+        item_feature_map = build_item_features(brand_df)
+        dataset = prepare_dataset(user_df, brand_df, user_feature_map, item_feature_map)
+        item_features = dataset.build_item_features([(iid, feats) for iid, feats in item_feature_map.items()])
         interactions, weights = build_interactions(dataset, interaction_df, user_brand_df, brand_df)
         user_features = dataset.build_user_features([(uid, feats) for uid, feats in user_feature_map.items()])
 
         # 4. 모델 학습
-        model = train_model(interactions, weights, user_features)
+        model = train_model(interactions, weights, user_features, item_features)
 
         # 5. 추천 생성
         recommend_df = generate_recommendation_for_user(
-            user_id, user_df, brand_df, model, dataset, user_features, exclude_brand_ids=exclude_brand_ids
+            user_id, user_df, brand_df, model, dataset, user_features, item_features, exclude_brand_ids=exclude_brand_ids
         )
 
         if recommend_df.empty:

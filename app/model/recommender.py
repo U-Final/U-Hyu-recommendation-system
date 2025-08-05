@@ -2,11 +2,16 @@ import numpy as np
 from datetime import datetime, timezone
 import pandas as pd
 
-def _predict_user_scores(user_index, model, item_indices, user_features):
+'''
+LightFM 모델을 기반으로 상위 브랜드 추천 결과를 생성
+'''
+
+def _predict_user_scores(user_index, model, item_indices, user_features, item_features):
     scores = model.predict(
         user_ids=np.repeat(user_index, len(item_indices)),
         item_ids=np.array(item_indices),
-        user_features=user_features
+        user_features=user_features,
+        item_features=item_features
     )
     return scores
 
@@ -25,7 +30,7 @@ def _build_recommendation_result(user_id, scores, item_indices, index_to_brand_i
         for rank, idx in enumerate(top_k_indices, start=1)
     ]
 
-def generate_recommendations(user_df, brand_df, model, dataset, user_features, top_k=5, exclude_brand_ids=None):
+def generate_recommendations(user_df, brand_df, model, dataset, user_features, item_features, top_k=5, exclude_brand_ids=None):
     _, _, item_mapping, _ = dataset.mapping()
     index_to_brand_id = {v: k for k, v in item_mapping.items()}
 
@@ -37,12 +42,12 @@ def generate_recommendations(user_df, brand_df, model, dataset, user_features, t
     results = []
     for user_id in user_df["user_id"]:
         user_index = user_df[user_df["user_id"] == user_id].index[0]
-        scores = _predict_user_scores(user_index, model, item_indices, user_features)
+        scores = _predict_user_scores(user_index, model, item_indices, user_features, item_features)
         results.extend(_build_recommendation_result(user_id, scores, item_indices, index_to_brand_id, top_k))
 
     return pd.DataFrame(results)
 
-def generate_recommendation_for_user(user_id, user_df, brand_df, model, dataset, user_features, top_k=5, exclude_brand_ids=None):
+def generate_recommendation_for_user(user_id, user_df, brand_df, model, dataset, user_features, item_features, top_k=5, exclude_brand_ids=None):
     _, _, item_mapping, _ = dataset.mapping()
     index_to_brand_id = {v: k for k, v in item_mapping.items()}
 
@@ -55,7 +60,7 @@ def generate_recommendation_for_user(user_id, user_df, brand_df, model, dataset,
         return pd.DataFrame([])
 
     user_index = user_df[user_df["user_id"] == user_id].index[0]
-    scores = _predict_user_scores(user_index, model, item_indices, user_features)
+    scores = _predict_user_scores(user_index, model, item_indices, user_features, item_features)
     results = _build_recommendation_result(user_id, scores, item_indices, index_to_brand_id, top_k)
 
     return pd.DataFrame(results)
