@@ -1,4 +1,6 @@
 from sqlalchemy import text
+import logging
+logger = logging.getLogger(__name__)
 
 def save_to_db(engine, recommend_df):
     with engine.begin() as conn:
@@ -12,26 +14,28 @@ def save_to_db(engine, recommend_df):
 
 def save_statistics(engine, statistics_df):
     if statistics_df.empty:
-        print("⚠️ 저장할 통계 데이터가 없습니다.")
+        logger.warning("⚠️ 저장할 통계 데이터가 없습니다.")
         return
 
-    statistics_records = []
-    for row in statistics_df.itertuples(index=False):
-        if not all([row.brand_name, row.category_id, row.category_name]):
-            continue  # 누락된 정보가 있다면 저장하지 않음
+    # statistics_records = []
+    # for row in statistics_df.itertuples(index=False):
+    #     if not all([row.brand_name, row.category_id, row.category_name]):
+    #         continue  # 누락된 정보가 있다면 저장하지 않음
+    #
+    #     statistics_records.append({
+    #         "user_id": row.user_id,
+    #         "my_map_list_id": None,
+    #         "store_id": None,
+    #         "brand_id": row.brand_id,
+    #         "brand_name": row.brand_name,
+    #         "category_id": row.category_id,
+    #         "category_name": row.category_name,
+    #         "statistics_type": "RECOMMENDATION",
+    #         "created_at": row.created_at,
+    #         "updated_at": row.updated_at,
+    #     })
 
-        statistics_records.append({
-            "user_id": row.user_id,
-            "my_map_list_id": None,
-            "store_id": None,
-            "brand_id": row.brand_id,
-            "brand_name": row.brand_name,
-            "category_id": row.category_id,
-            "category_name": row.category_name,
-            "statistics_type": "RECOMMENDATION",
-            "created_at": row.created_at,
-            "updated_at": row.updated_at,
-        })
+    statistics_records = statistics_df.to_dict('records')
 
     with engine.begin() as conn:
         conn.execute(
@@ -50,4 +54,4 @@ def save_statistics(engine, statistics_df):
             statistics_records
         )
 
-    print(f"📊 통계 {len(statistics_records)}건 저장 완료")
+    logger.info(f"📊 통계 {len(statistics_records)}건 저장 완료")
