@@ -69,9 +69,17 @@ def main():
     )
     print(f"🎯 추천 결과 개수: {len(recommend_df)}")
 
+    # statistics에 저장하기 위한 데이터 생성
+    brand_df = pd.read_sql(
+        "SELECT id as brand_id, brand_name, category_id FROM brand", engine
+    )
+    category_df = pd.read_sql(
+        "SELECT id as category_id, name as category_name FROM category", engine
+    )
+
     # DB 저장
     print("💾 추천 결과 DB 저장 중...")
-    save_to_db(engine, recommend_df)
+    save_to_db(engine, recommend_df, brand_df, category_df)
 
     # CSV 저장
     # print("📄 추천 결과 CSV 저장 중...")

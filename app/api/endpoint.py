@@ -74,7 +74,7 @@ def recommend_on_demand(request_body: UserRequest):
             raise HTTPException(status_code=404, detail="추천할 브랜드가 없습니다.")
 
         # 6. DB 저장
-        save_to_db(engine, recommend_df)
+        save_to_db(engine, recommend_df, brand_df, category_df)
 
         # 7. 응답 반환
         return {
