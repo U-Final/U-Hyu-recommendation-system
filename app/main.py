@@ -6,6 +6,7 @@ from app.features.builder import build_user_features, build_item_features
 from app.model.trainer import prepare_dataset, build_interactions, train_model
 from app.model.recommender import generate_recommendations
 from app.saver.db_saver import save_to_db
+from app.utils.statistics import prepare_statistics_df
 from app.saver.file_exporter import save_to_csv
 
 def main():
@@ -80,25 +81,7 @@ def main():
     # save_to_csv(recommend_df)
 
     # 📊 통계용 데이터 구성
-    print("📊 통계 데이터 구성 중...")
-    statistics_df = recommend_df.merge(
-        brand_df[['brand_id', 'brand_name', 'category_id', 'category_name']],
-        on='brand_id',
-        how='left'
-    )
-
-    statistics_df = statistics_df[[
-        'user_id', 'brand_id', 'brand_name', 'category_id', 'category_name'
-    ]].copy()
-
-    statistics_df['my_map_list_id'] = None
-    statistics_df['store_id'] = None
-    statistics_df['statistics_type'] = 'RECOMMENDATION'
-    statistics_df['created_at'] = datetime.now()
-    statistics_df['updated_at'] = datetime.now()
-
-    # 누락된 브랜드 정보 제거
-    statistics_df = statistics_df.dropna(subset=['brand_name', 'category_id', 'category_name'])
+    statistics_df = prepare_statistics_df(recommend_df, brand_df)
 
     # DB에 통계 저장
     try:
