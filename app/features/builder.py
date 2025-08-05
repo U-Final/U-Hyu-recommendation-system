@@ -38,16 +38,22 @@ def build_item_features(brand_df):
         features = []
 
         # 카테고리
-        if not pd.isna(row.get("category_id")):
-            features.append(f"category_{int(row['category_id'])}")
+        category_id = row.get("category_id")
+        if not pd.isna(category_id) and pd.api.types.is_numeric_dtype(type(category_id)):
+            try:
+                features.append(f"category_{int(category_id)}")
+            except (ValueError, TypeError):
+                pass
 
         # 온라인/오프라인
-        if not pd.isna(row.get("store_type")):
-            features.append(f"store_{row['store_type'].lower()}")
+        store_type = row.get("store_type")
+        if not pd.isna(store_type) and isinstance(store_type, str):
+            features.append(f"store_{store_type.lower()}")
 
         # 예시: 브랜드명 키워드 (간단 토크나이징)
-        if not pd.isna(row.get("brand_name")):
-            tokens = row["brand_name"].lower().split()
+        brand_name = row.get("brand_name")
+        if not pd.isna(brand_name) and isinstance(brand_name, str):
+            tokens = brand_name.lower().split()
             features += [f"name_{token}" for token in tokens]
 
         item_feature_map[brand_id] = features

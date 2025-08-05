@@ -42,7 +42,6 @@ def main():
     user_feature_map = build_user_features(user_brand_df, bookmark_df, brand_df, exclude_brand_ids=exclude_brand_ids)
 
     print("📦 데이터셋 구성 중...")
-    dataset = prepare_dataset(user_df, brand_df, user_feature_map)
 
     print("🛠️ 아이템 피처 생성 중...")
     item_feature_map = build_item_features(brand_df)
