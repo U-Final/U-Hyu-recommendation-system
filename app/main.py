@@ -8,6 +8,7 @@ from app.model.recommender import generate_recommendations
 from app.saver.db_saver import save_to_db
 from app.utils.statistics import prepare_statistics_df
 from app.saver.file_exporter import save_to_csv
+from app.utils.evaluator import evaluate_recommendations
 
 def main():
     print("🚀 추천 시스템 실행 중...")
@@ -70,6 +71,9 @@ def main():
         exclude_brand_ids=exclude_brand_ids
     )
     print(f"🎯 추천 결과 개수: {len(recommend_df)}")
+
+    # 5. 추천 평가
+    evaluate_recommendations(recommend_df, user_brand_df, bookmark_df, interaction_df)
 
     # DB 저장
     print("💾 추천 결과 DB 저장 중...")
