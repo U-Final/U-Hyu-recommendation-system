@@ -2,12 +2,13 @@ from datetime import datetime
 from app.saver.db_saver import save_statistics
 from app.config.database import get_engine
 from app.data.loader import *
-from app.features.builder import build_user_features, build_item_features
-from app.model.trainer import prepare_dataset, build_interactions, train_model
+from app.features.builder import build_user_features, build_item_features, build_interactions
+from app.model.trainer import prepare_dataset, train_model
 from app.model.recommender import generate_recommendations
 from app.saver.db_saver import save_to_db
 from app.utils.statistics import prepare_statistics_df
 from app.saver.file_exporter import save_to_csv
+from app.utils.evaluator import evaluate_recommendations
 
 def main():
     print("🚀 추천 시스템 실행 중...")
@@ -64,13 +65,16 @@ def main():
 
     # 추천 생성
     print("📊 추천 결과 생성 중...")
-    # recommend_df = generate_recommendations(user_df, brand_df, model, dataset, user_features, exclude_brand_ids=exclude_brand_ids)
     recommend_df = generate_recommendations(
         user_df, brand_df, model, dataset,
         user_features, item_features,
         exclude_brand_ids=exclude_brand_ids
     )
     print(f"🎯 추천 결과 개수: {len(recommend_df)}")
+
+    # 5. 추천 평가
+    # evaluate_recommendations(recommend_df, user_brand_df, bookmark_df, interaction_df, brand_df)
+    evaluate_recommendations(recommend_df, user_brand_df, brand_df)
 
     # DB 저장
     print("💾 추천 결과 DB 저장 중...")
