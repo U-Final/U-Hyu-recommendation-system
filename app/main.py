@@ -73,7 +73,8 @@ def main():
     print(f"🎯 추천 결과 개수: {len(recommend_df)}")
 
     # 5. 추천 평가
-    evaluate_recommendations(recommend_df, user_brand_df, bookmark_df, interaction_df, brand_df)
+    # evaluate_recommendations(recommend_df, user_brand_df, bookmark_df, interaction_df, brand_df)
+    evaluate_recommendations(recommend_df, user_brand_df, brand_df)
 
     # DB 저장
     print("💾 추천 결과 DB 저장 중...")

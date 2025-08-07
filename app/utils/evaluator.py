@@ -8,7 +8,7 @@ def evaluate_metrics(recommended, ground_truth, k=5):
     hit = int(hits > 0)
     return {"precision": precision, "recall": recall, "hit": hit}
 
-def evaluate_recommendations(recommend_df, user_brand_df, bookmark_df, interaction_df, brand_df, top_k=5):
+def evaluate_recommendations(recommend_df, user_brand_df, brand_df, top_k=5):
     print("\n🧪 추천 결과 평가 중...\n")
 
     data_type = "INTEREST"
