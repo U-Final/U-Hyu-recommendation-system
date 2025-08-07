@@ -28,6 +28,6 @@ def train_model(interactions, weights, user_features, item_features):
               sample_weight=weights,
               user_features=user_features,
               item_features=item_features,
-              epochs=10,
+              epochs=300,
               num_threads=4)
     return model
